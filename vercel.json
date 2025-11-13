@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/form-submissions/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
