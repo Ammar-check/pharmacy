@@ -77,11 +77,11 @@ input[type="number"],
 input[type="date"],
 textarea,
 select {
-  color: #1f2937 !important; /* Dark gray text color for typing */
+  color: #000000 !important; /* Black text color for typing */
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #4b5563 !important; /* Dark gray placeholder text */
+  color: #000000 !important; /* Black placeholder text */
   opacity: 1 !important;
 }

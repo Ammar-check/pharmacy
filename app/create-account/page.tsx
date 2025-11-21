@@ -19,6 +19,27 @@ export default function CreateAccountPage() {
     setError(null);
     setLoading(true);
 
+    // Hardcore email validation
+    const emailRegex = /^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+
+    if (!email || email.trim() === "") {
+      setLoading(false);
+      setError("Email is required");
+      return;
+    }
+
+    if (!emailRegex.test(email)) {
+      setLoading(false);
+      setError("Please enter a valid email address (e.g., user@example.com)");
+      return;
+    }
+
+    if (email.length > 254) {
+      setLoading(false);
+      setError("Email address is too long");
+      return;
+    }
+
     // Check if email already exists in profiles table
     const { data: existingProfile } = await supabase
       .from("profiles")
