@@ -6,107 +6,11 @@ import Navbar from "../../components/navbar";
 import Footer from "../../components/footer";
 
 export default function CreateAccountPage() {
-  const [mode, setMode] = useState<"signup" | "login">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
   const router = useRouter();
-
-  const handleSignup = async () => {
-    setError(null);
-    setLoading(true);
-
-    // Hardcore email validation
-    const emailRegex = /^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-
-    if (!email || email.trim() === "") {
-      setLoading(false);
-      setError("Email is required");
-      return;
-    }
-
-    if (!emailRegex.test(email)) {
-      setLoading(false);
-      setError("Please enter a valid email address (e.g., user@example.com)");
-      return;
-    }
-
-    if (email.length > 254) {
-      setLoading(false);
-      setError("Email address is too long");
-      return;
-    }
-
-    // Check if email already exists in profiles table
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("email", email)
-      .single();
-
-    if (existingProfile) {
-      setLoading(false);
-      setError("This email is already registered. Please try logging in instead or use a different email.");
-      // Auto-switch to login mode after showing error
-      setTimeout(() => {
-        setMode("login");
-        setPassword("");
-        setFullName("");
-      }, 3000);
-      return;
-    }
-
-    // Get the redirect URL dynamically
-    const redirectUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/auth/callback`
-      : "https://pharmacy-landingpage.vercel.app/auth/callback";
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: redirectUrl,
-      },
-    });
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    // Check if user already exists (Supabase returns user but with empty identities)
-    if (data.user && data.user.identities && data.user.identities.length === 0) {
-      setError("This email is already registered. Please try logging in instead or use a different email.");
-      // Auto-switch to login mode after showing error
-      setTimeout(() => {
-        setMode("login");
-        setPassword("");
-        setFullName("");
-      }, 3000);
-      return;
-    }
-
-    if (data.user) {
-      await supabase.from("profiles").upsert({ id: data.user.id, email: data.user.email, full_name: fullName });
-
-      // Show email verification message
-      setShowVerificationMessage(true);
-
-      // After 5 seconds, switch to login mode
-      setTimeout(() => {
-        setShowVerificationMessage(false);
-        setMode("login");
-        setEmail("");
-        setPassword("");
-        setFullName("");
-      }, 5000);
-    }
-  };
 
   const handleLogin = async () => {
     setError(null);
@@ -145,17 +49,15 @@ export default function CreateAccountPage() {
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <div className="flex mb-6">
               <button
-                className={`flex-1 py-2 rounded-lg font-semibold ${mode === "signup" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
-                onClick={() => setMode("signup")}
+                className="flex-1 py-2 rounded-lg font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                onClick={() => router.push("/provider-signup")}
+                type="button"
               >
-                Create account
+                Create Provider's Account
               </button>
-              <button
-                className={`flex-1 py-2 rounded-lg font-semibold ml-2 ${mode === "login" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
-                onClick={() => setMode("login")}
-              >
+              <div className="flex-1 py-2 rounded-lg font-semibold ml-2 bg-blue-600 text-white flex items-center justify-center">
                 Log in
-              </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -215,67 +117,22 @@ export default function CreateAccountPage() {
               </div>
             </div>
 
-            {/* Email Verification Message */}
-            {showVerificationMessage && (
-              <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4 rounded-lg">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-semibold text-green-800">Account Created Successfully!</h3>
-                    <p className="text-sm text-green-700 mt-1">
-                      Please check your email inbox and verify your email address before logging in.
-                    </p>
-                    <p className="text-xs text-green-600 mt-2 italic">
-                      Redirecting to login in 5 seconds...
-                    </p>
-                  </div>
-                </div>
+            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+              <div>
+                <label className="block text-sm font-semibold text-black mb-1">Email</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" required />
               </div>
-            )}
-
-            {mode === "signup" ? (
-              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignup(); }}>
-                <div>
-                  <label className="block text-sm font-semibold text-black mb-1">Full name</label>
-                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} type="text" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-black mb-1">Email</label>
-                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-black mb-1">Password</label>
-                  <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" />
-                </div>
-                {error && <p className="text-red-600 text-sm">{error}</p>}
-                <button disabled={loading} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">{loading ? "Creating..." : "Create account"}</button>
-                <p className="text-sm text-gray-600 text-center">
-                  Already have an account? {" "}
-                  <button type="button" className="text-blue-600 font-semibold hover:underline" onClick={() => setMode("login")}>Log in</button>
-                </p>
-              </form>
-            ) : (
-              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
-                <div>
-                  <label className="block text-sm font-semibold text-black mb-1">Email</label>
-                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-black mb-1">Password</label>
-                  <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" />
-                </div>
-                {error && <p className="text-red-600 text-sm">{error}</p>}
-                <button disabled={loading} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">{loading ? "Logging in..." : "Log in"}</button>
-                <p className="text-sm text-gray-600 text-center">
-                  New here? {" "}
-                  <button type="button" className="text-blue-600 font-semibold hover:underline" onClick={() => setMode("signup")}>Create account</button>
-                </p>
-              </form>
-            )}
+              <div>
+                <label className="block text-sm font-semibold text-black mb-1">Password</label>
+                <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" required />
+              </div>
+              {error && <p className="text-red-600 text-sm">{error}</p>}
+              <button disabled={loading} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">{loading ? "Logging in..." : "Log in"}</button>
+              <p className="text-sm text-gray-600 text-center">
+                New provider? {" "}
+                <button type="button" className="text-blue-600 font-semibold hover:underline" onClick={() => router.push("/provider-signup")}>Create Provider's Account</button>
+              </p>
+            </form>
           </div>
         </div>
       </div>

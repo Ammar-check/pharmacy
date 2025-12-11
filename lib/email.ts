@@ -62,4 +62,45 @@ export async function sendEmail(params: {
 	}
 }
 
+export async function sendEmailWithAttachment(params: {
+	to: string | string[];
+	subject: string;
+	html: string;
+	from?: string;
+	attachments?: Array<{
+		filename: string;
+		path?: string;
+		content?: Buffer | string;
+		contentType?: string;
+	}>;
+}) {
+	try {
+		const transporter = createTransporter();
+		const from = params.from || process.env.SMTP_EMAIL || "no-reply@example.com";
+
+		const mailOptions = {
+			from: from,
+			to: Array.isArray(params.to) ? params.to.join(", ") : params.to,
+			subject: params.subject,
+			html: params.html,
+			attachments: params.attachments || [],
+		};
+
+		const info = await transporter.sendMail(mailOptions);
+		console.log("Email with attachment sent successfully:", info.messageId);
+		return info;
+	} catch (error) {
+		console.error("Error sending email with attachment:", error);
+		console.error("Email config:", {
+			service: process.env.SMTP_SERVICE,
+			hasEmail: !!process.env.SMTP_EMAIL,
+			hasPassword: !!process.env.SMTP_PASSWORD,
+			to: params.to,
+			subject: params.subject,
+			attachmentCount: params.attachments?.length || 0,
+		});
+		throw error;
+	}
+}
+
 
