@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Navbar from "../../components/navbar";
 import Footer from "../../components/footer";
 import { Mail, CheckCircle, Clock, FileText, ArrowRight } from "lucide-react";
 
-export default function ProviderPendingSignaturePage() {
+function ProviderPendingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
@@ -229,5 +229,25 @@ export default function ProviderPendingSignaturePage() {
 
       <Footer />
     </main>
+  );
+}
+
+export default function ProviderPendingSignaturePage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gradient-to-b from-white to-blue-50">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </main>
+    }>
+      <ProviderPendingContent />
+    </Suspense>
   );
 }

@@ -53,8 +53,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+
     // Check if email already exists in provider_accounts
     const supabase = await createSupabaseServiceRole();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Failed to initialize database connection" },
+        { status: 500 }
+      );
+    }
+
     const { data: existingProvider } = await supabase
       .from("provider_accounts")
       .select("email")
@@ -279,11 +287,11 @@ export async function POST(req: NextRequest) {
         html: emailHtml,
         attachments: fs.existsSync(dummyFormPath)
           ? [
-              {
-                filename: "Provider_Agreement_Form.pdf",
-                path: dummyFormPath,
-              },
-            ]
+            {
+              filename: "Provider_Agreement_Form.pdf",
+              path: dummyFormPath,
+            },
+          ]
           : [],
       });
 
