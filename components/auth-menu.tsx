@@ -67,7 +67,7 @@ export default function AuthMenu() {
   if (!state.email) {
     return (
       <>
-        <Link href="/create-account" className="text-gray-700 font-medium hover:underline">Log in</Link>
+        <Link href="/create-account" className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg transition">Login</Link>
       </>
     );
   }

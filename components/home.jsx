@@ -6,8 +6,8 @@ import supabase from "@/lib/supabase/client";
 export default function Home() {
   const forms = [
     { name: "Weight Loss Pad", link: "/weightlossForm", icon: "weight", type: "weightloss", isActive: true },
-    { name: "Peptides Pad", link: "/peptidesForm", icon: "dna", type: "peptides", isActive: true },
     { name: "Sterile Pad", link: "/sterilePadForm", icon: "syringe", type: "sterile", isActive: true },
+    { name: "Peptides Pad", link: "/peptidesForm", icon: "dna", type: "peptides", isActive: true },
     { name: "Dermatology Pad", link: "/dermatologyPadForm", icon: "skin", type: "dermatology", isActive: true },
     { name: "Controls Pad", link: "/controlsPadForm", icon: "shield", type: "controls", isActive: true },
   ];
@@ -24,33 +24,30 @@ export default function Home() {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setIsLoggedIn(!!session);
-      console.log("Auth check - Session exists:", !!session); // Debug log
+      console.log("Auth check - Session exists:", !!session);
     };
 
     checkAuth();
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsLoggedIn(!!session);
-      console.log("Auth state changed - Session exists:", !!session); // Debug log
+      console.log("Auth state changed - Session exists:", !!session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const handleOpen = (form) => {
-    console.log("handleOpen called - isLoggedIn:", isLoggedIn); // Debug log
+    console.log("handleOpen called - isLoggedIn:", isLoggedIn);
 
-    // If user is logged in, directly navigate to form
     if (isLoggedIn) {
-      console.log("User is logged in, navigating directly to form"); // Debug log
+      console.log("User is logged in, navigating directly to form");
       const url = `${form.link}?type=${encodeURIComponent(form.type)}`;
       router.push(url);
       return;
     }
 
-    // If user is NOT logged in, show password modal
-    console.log("User is NOT logged in, showing password modal"); // Debug log
+    console.log("User is NOT logged in, showing password modal");
     setSelectedForm(form);
     setPassword("");
     setError("");
@@ -67,92 +64,202 @@ export default function Home() {
     }
   };
 
+  const renderIcon = (icon) => {
+    const iconClass = "w-10 h-10";
+    switch (icon) {
+      case "weight":
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={iconClass} fill="none">
+            <circle cx="12" cy="12" r="9" className="stroke-blue-600" strokeWidth="2" />
+            <path d="M8 12h8" className="stroke-blue-600" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        );
+      case "dna":
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={iconClass} fill="none">
+            <path d="M7 4c6 0 6 16 12 16M17 4C11 4 11 20 5 20" className="stroke-blue-600" strokeWidth="2" />
+          </svg>
+        );
+      case "syringe":
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={iconClass} fill="none">
+            <rect x="6" y="6" width="12" height="12" className="stroke-blue-600" strokeWidth="2" rx="2" />
+            <path d="M10 10h4M10 14h4" className="stroke-blue-600" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        );
+      case "skin":
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={iconClass} fill="none">
+            <path d="M4 12c3-6 13-6 16 0-3 6-13 6-16 0z" className="stroke-blue-600" strokeWidth="2" />
+            <circle cx="12" cy="12" r="2" className="fill-blue-600" />
+          </svg>
+        );
+      case "shield":
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={iconClass} fill="none">
+            <path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" className="stroke-blue-600" strokeWidth="2" />
+            <path d="M9 12l2 2 4-4" className="stroke-blue-600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center py-10 bg-gradient-to-b from-white to-blue-50 min-h-screen">
-      <div className="w-full max-w-5xl px-4">
-        <div className="relative overflow-hidden rounded-2xl shadow-md bg-gradient-to-r from-blue-900 to-blue-700">
-          <div className="relative p-6 md:p-8">
-            <div className="flex items-start md:items-end justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <img src="/medconnect logo.webp" alt="MedConnect" className="w-16 h-auto" />
-                  <h1 className="text-2xl md:text-3xl font-bold text-white">MedConnect</h1>
-                </div>
-                <p className="text-blue-100 text-sm">Compounding • Wellness • Patient-Centric Care</p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="relative min-h-screen bg-gray-50 py-12 px-4">
+      {/* Left Wave Decoration - Positioned at intersection of first and second row */}
+      <svg className="absolute left-[66px] md:left-[98px] top-[115px] md:top-[155px] w-24 h-24 md:w-32 md:h-32 text-blue-600 opacity-70 z-10" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 50 Q 7.5 45, 15 50 Q 22.5 55, 30 50 Q 37.5 45, 45 50 Q 52.5 55, 60 50 Q 67.5 45, 75 50 Q 82.5 55, 90 50 Q 97.5 45, 105 50 Q 112.5 55, 120 50" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M0 60 Q 7.5 55, 15 60 Q 22.5 65, 30 60 Q 37.5 55, 45 60 Q 52.5 65, 60 60 Q 67.5 55, 75 60 Q 82.5 65, 90 60 Q 97.5 55, 105 60 Q 112.5 65, 120 60" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M0 70 Q 7.5 65, 15 70 Q 22.5 75, 30 70 Q 37.5 65, 45 70 Q 52.5 75, 60 70 Q 67.5 65, 75 70 Q 82.5 75, 90 70 Q 97.5 65, 105 70 Q 112.5 75, 120 70" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M0 80 Q 7.5 75, 15 80 Q 22.5 85, 30 80 Q 37.5 75, 45 80 Q 52.5 85, 60 80 Q 67.5 75, 75 80 Q 82.5 85, 90 80 Q 97.5 75, 105 80 Q 112.5 85, 120 80" stroke="currentColor" strokeWidth="2" fill="none" />
+      </svg>
+
+      {/* Right Wave Decoration - Positioned at intersection of first and second row */}
+      <svg className="absolute right-[66px] md:right-[98px] top-[585px] md:top-[625px] w-24 h-24 md:w-32 md:h-32 text-blue-600 opacity-70 z-10" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 50 Q 7.5 45, 15 50 Q 22.5 55, 30 50 Q 37.5 45, 45 50 Q 52.5 55, 60 50 Q 67.5 45, 75 50 Q 82.5 55, 90 50 Q 97.5 45, 105 50 Q 112.5 55, 120 50" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M0 60 Q 7.5 55, 15 60 Q 22.5 65, 30 60 Q 37.5 55, 45 60 Q 52.5 65, 60 60 Q 67.5 55, 75 60 Q 82.5 65, 90 60 Q 97.5 55, 105 60 Q 112.5 65, 120 60" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M0 70 Q 7.5 65, 15 70 Q 22.5 75, 30 70 Q 37.5 65, 45 70 Q 52.5 75, 60 70 Q 67.5 65, 75 70 Q 82.5 75, 90 70 Q 97.5 65, 105 70 Q 112.5 75, 120 70" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M0 80 Q 7.5 75, 15 80 Q 22.5 85, 30 80 Q 37.5 75, 45 80 Q 52.5 85, 60 80 Q 67.5 75, 75 80 Q 82.5 85, 90 80 Q 97.5 75, 105 80 Q 112.5 85, 120 80" stroke="currentColor" strokeWidth="2" fill="none" />
+      </svg>
+
+      {/* Hero Section */}
+      <div className="max-w-6xl mx-auto text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-800 mb-4">
+          Top <span className="text-blue-600">services</span> we offer
+        </h1>
+        <p className="text-gray-600 max-w-2xl mx-auto">
+          In today's fast-paced world, your health deserves the utmost attention and convenience. That's why MedConnect offers a suite of integrated services designed to cater to your healthcare needs digitally.
+        </p>
       </div>
 
-      <div className="w-full max-w-3xl flex flex-col gap-4 mt-8 px-4">
-        {forms.map((form) => {
-          const isActive = !!form.isActive;
+      {/* Services Bento Grid */}
+      <div className="max-w-6xl mx-auto px-4">
+        {/* First Row - Bento Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          {/* Weight Loss Pad - Takes 2 columns */}
+          <button
+            onClick={() => {
+              if (forms[0].isActive) {
+                handleOpen(forms[0]);
+              }
+            }}
+            disabled={!forms[0].isActive}
+            className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all hover:border-blue-300 text-left group md:col-span-2"
+          >
+            {/* Icon */}
+            <div className="mb-4">
+              {renderIcon(forms[0].icon)}
+            </div>
 
-          const renderIcon = () => {
-            switch (form.icon) {
-              case "weight":
-                return (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 mr-4" aria-hidden>
-                    <circle cx="12" cy="12" r="9" className="fill-blue-50 stroke-blue-500" strokeWidth="1.5"/>
-                    <path d="M8 12h8" className="stroke-blue-600" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                );
-              case "dna":
-                return (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 mr-4" aria-hidden>
-                    <path d="M7 4c6 0 6 16 12 16M17 4C11 4 11 20 5 20" className="stroke-blue-600" strokeWidth="2" fill="none"/>
-                  </svg>
-                );
-              case "syringe":
-                return (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 mr-4" aria-hidden>
-                    <path d="M21 3l-6 6m-2 2l-6 6 4 4 6-6m-4-2l4 4" className="stroke-blue-600" strokeWidth="2" fill="none"/>
-                  </svg>
-                );
-              case "skin":
-                return (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 mr-4" aria-hidden>
-                    <path d="M4 12c3-6 13-6 16 0-3 6-13 6-16 0z" className="fill-blue-50 stroke-blue-600" strokeWidth="1.5"/>
-                  </svg>
-                );
-              case "shield":
-                return (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 mr-4" aria-hidden>
-                    <path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" className="fill-blue-50 stroke-blue-600" strokeWidth="1.5"/>
-                  </svg>
-                );
-              default:
-                return null;
-            }
-          };
+            {/* Title with External Link Icon */}
+            <h3 className="text-lg font-semibold text-blue-600 mb-2 flex items-center gap-2">
+              {forms[0].name}
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </h3>
 
-          return (
+            {/* Subtitle */}
+            <p className="text-sm text-gray-600 mb-4">Tap to open form & details below</p>
+
+            {/* Bullet Points */}
+            <ul className="space-y-2">
+              <li className="flex items-center text-sm text-gray-700">
+                <span className="mr-2">•</span>
+                <span className="uppercase tracking-wide">Patient Information</span>
+              </li>
+              <li className="flex items-center text-sm text-gray-700">
+                <span className="mr-2">•</span>
+                <span className="uppercase tracking-wide">Physician Information</span>
+              </li>
+            </ul>
+          </button>
+
+          {/* Sterile Pad - Takes 1 column */}
+          <button
+            onClick={() => {
+              if (forms[1].isActive) {
+                handleOpen(forms[1]);
+              }
+            }}
+            disabled={!forms[1].isActive}
+            className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all hover:border-blue-300 text-left group"
+          >
+            {/* Icon */}
+            <div className="mb-4">
+              {renderIcon(forms[1].icon)}
+            </div>
+
+            {/* Title with External Link Icon */}
+            <h3 className="text-lg font-semibold text-blue-600 mb-2 flex items-center gap-2">
+              {forms[1].name}
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </h3>
+
+            {/* Subtitle */}
+            <p className="text-sm text-gray-600 mb-4">Tap to open form & details below</p>
+
+            {/* Bullet Points */}
+            <ul className="space-y-2">
+              <li className="flex items-center text-sm text-gray-700">
+                <span className="mr-2">•</span>
+                <span className="uppercase tracking-wide">Patient Information</span>
+              </li>
+              <li className="flex items-center text-sm text-gray-700">
+                <span className="mr-2">•</span>
+                <span className="uppercase tracking-wide">Physician Information</span>
+              </li>
+            </ul>
+          </button>
+        </div>
+
+        {/* Second Row - Three Equal Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {forms.slice(2).map((form) => (
             <button
               key={form.type}
               onClick={() => {
-                if (isActive) {
+                if (form.isActive) {
                   handleOpen(form);
                 }
               }}
-              disabled={!isActive}
-              className={`text-left flex items-center border border-gray-200 bg-white rounded-xl p-4 shadow-sm transition group ${
-                isActive ? "hover:shadow-md hover:border-blue-500" : "opacity-60 cursor-not-allowed"
-              }`}
+              disabled={!form.isActive}
+              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all hover:border-blue-300 text-left group"
             >
-              {renderIcon()}
-              <div className="flex-1">
-                <span className="text-gray-900 font-semibold tracking-wide">{form.name.toUpperCase()}</span>
-                <p className="text-xs text-gray-500">{isActive ? "Tap to open form" : "Coming soon"}</p>
+              {/* Icon */}
+              <div className="mb-4">
+                {renderIcon(form.icon)}
               </div>
-              <img
-                src="https://img.icons8.com/ios-glyphs/24/chevron-right.png"
-                alt="go"
-                className={`opacity-40 ${isActive ? "group-hover:opacity-80" : ""}`}
-              />
+
+              {/* Title with External Link Icon */}
+              <h3 className="text-lg font-semibold text-blue-600 mb-2 flex items-center gap-2">
+                {form.name}
+                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </h3>
+
+              {/* Subtitle */}
+              <p className="text-sm text-gray-600 mb-4">Tap to open form & details below</p>
+
+              {/* Bullet Points */}
+              <ul className="space-y-2">
+                <li className="flex items-center text-sm text-gray-700">
+                  <span className="mr-2">•</span>
+                  <span className="uppercase tracking-wide">Patient Information</span>
+                </li>
+                <li className="flex items-center text-sm text-gray-700">
+                  <span className="mr-2">•</span>
+                  <span className="uppercase tracking-wide">Physician Information</span>
+                </li>
+              </ul>
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
       {/* Password Modal */}
