@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import AdminLogoutButton from "@/components/admin-logout-button";
 
 type SubmissionRow = {
@@ -39,46 +40,54 @@ export default function AdminDashboardContent({ rows, counts, totalSubmissions }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="mb-8 flex justify-between items-start">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-blue-900 mb-2">Admin Dashboard</h1>
-            <p className="text-gray-600">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-900 mb-2">Admin Dashboard</h1>
+            <p className="text-sm sm:text-base text-gray-600">
               Welcome back, <span className="font-semibold">Admin</span>
             </p>
           </div>
-          <AdminLogoutButton />
+          <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
+            <Link
+              href="/admin/products"
+              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm sm:text-base text-center"
+            >
+              Manage Products
+            </Link>
+            <AdminLogoutButton />
+          </div>
         </div>
 
         {/* Total Stats Card */}
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-lg p-8 text-white">
+        <div className="mb-4 sm:mb-6">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-8 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm uppercase tracking-wide mb-2">Total Submissions</p>
-                <p className="text-6xl font-bold">{totalSubmissions}</p>
-                <p className="text-blue-200 mt-2">All time submissions across all forms</p>
+                <p className="text-blue-100 text-xs sm:text-sm uppercase tracking-wide mb-2">Total Submissions</p>
+                <p className="text-4xl sm:text-5xl lg:text-6xl font-bold">{totalSubmissions}</p>
+                <p className="text-blue-200 mt-2 text-xs sm:text-base">All time submissions across all forms</p>
               </div>
-              <div className="text-8xl opacity-20">📊</div>
+              <div className="text-5xl sm:text-6xl lg:text-8xl opacity-20">📊</div>
             </div>
           </div>
         </div>
 
         {/* Category Stats Grid */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Submissions by Category</h2>
+        <div className="mb-6 sm:mb-8">
+          <div className="flex justify-between items-center mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800">Submissions by Category</h2>
             {selectedFilter && (
               <button
                 onClick={() => setSelectedFilter(null)}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium underline"
+                className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-medium underline"
               >
                 Clear filter
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             {formCategories.map((cat) => {
               const isSelected = selectedFilter === cat.type;
               return (

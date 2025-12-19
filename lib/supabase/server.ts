@@ -72,3 +72,6 @@ export function createSupabaseServiceRole() {
     },
   });
 }
+
+// Alias for consistency
+export const createSupabaseServerClient = createSupabaseServer;
