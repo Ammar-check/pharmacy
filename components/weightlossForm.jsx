@@ -1,10 +1,18 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import supabase from "@/lib/supabase/client";
-import { Calendar, AlertCircle } from 'lucide-react';
+import { Calendar, AlertCircle, ShoppingCart } from 'lucide-react';
 import SuccessMessage from './SuccessMessage';
+import { useRouter } from 'next/navigation';
+
+// Helper function to extract price from medication string
+const extractPrice = (medicationString) => {
+  const priceMatch = medicationString.match(/\$(\d+(?:\.\d{2})?)/);
+  return priceMatch ? parseFloat(priceMatch[1]) : 0;
+};
 
 export default function WeightLossForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -194,12 +202,12 @@ export default function WeightLossForm() {
           <label
             key={item.value}
             className={`flex items-start gap-3 p-3 rounded-xl border transition shadow-sm ${
-              selected ? 'border-lime-400 bg-lime-50' : 'border-gray-200 bg-white'
+              selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
             }`}
           >
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 accent-lime-500"
+              className="mt-1 h-4 w-4 accent-blue-600"
               checked={selected}
               onChange={() => toggleSelection(field, item.value)}
             />
@@ -217,45 +225,120 @@ export default function WeightLossForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [totalPrice, setTotalPrice] = useState(0);
 
-  const handleSubmit = async (e) => {
+  // Calculate total price whenever selections change
+  useEffect(() => {
+    let total = 0;
+
+    // Add prices from all selected medications
+    const allSelections = [
+      ...(formData.semaglutideVialSelections || []),
+      ...(formData.semaglutideRdtSelections || []),
+      ...(formData.tirzepatideVialSelections || []),
+      ...(formData.tirzepatide20Selections || []),
+      ...(formData.tirzepatide30Selections || []),
+      ...(formData.commonlyPrescribedSelections || [])
+    ];
+
+    allSelections.forEach(medication => {
+      total += extractPrice(medication);
+    });
+
+    setTotalPrice(total);
+  }, [
+    formData.semaglutideVialSelections,
+    formData.semaglutideRdtSelections,
+    formData.tirzepatideVialSelections,
+    formData.tirzepatide20Selections,
+    formData.tirzepatide30Selections,
+    formData.commonlyPrescribedSelections
+  ]);
+
+  const handleAddToCart = async (e) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
+
     try {
-      // Require a signed-in Supabase user to satisfy RLS (auth.uid() = user_id)
+      // Require a signed-in Supabase user
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user) {
-        alert('Please sign in to submit the form.');
+        alert('Please sign in to add medicines to cart.');
         window.location.href = '/create-account';
         return;
       }
-      const res = await fetch('/api/form-submissions', {
+
+      // Collect all selected medications
+      const allSelections = [
+        ...(formData.semaglutideVialSelections || []),
+        ...(formData.semaglutideRdtSelections || []),
+        ...(formData.tirzepatideVialSelections || []),
+        ...(formData.tirzepatide20Selections || []),
+        ...(formData.tirzepatide30Selections || []),
+        ...(formData.commonlyPrescribedSelections || [])
+      ];
+
+      if (allSelections.length === 0) {
+        alert('Please select at least one medication');
+        setSubmitting(false);
+        return;
+      }
+
+      // Submit form data first to store prescription details
+      const formRes = await fetch('/api/form-submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formType: 'weightloss', formData, email: formData.email }),
+        body: JSON.stringify({
+          formType: 'weightloss',
+          formData,
+          email: formData.email,
+          totalPrice
+        }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to submit');
-      setShowSuccess(true);
+      const formJson = await formRes.json();
+      if (!formRes.ok) throw new Error(formJson.error || 'Failed to save prescription details');
+
+      const submissionId = formJson.submissionId;
+
+      // Add each medication to cart with form reference
+      for (const medication of allSelections) {
+        const price = extractPrice(medication);
+
+        // Create a cart item for each medication
+        await fetch('/api/cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productName: medication,
+            price: price,
+            quantity: 1,
+            formType: 'weightloss',
+            formSubmissionId: submissionId,
+            prescriptionDetails: {
+              patientName: `${formData.firstName} ${formData.lastName}`,
+              dob: `${formData.dobMonth}/${formData.dobDay}/${formData.dobYear}`,
+              prescriber: formData.prescriberName
+            }
+          }),
+        });
+      }
+
+      // Redirect to cart
+      router.push('/cart');
     } catch (err) {
       setError(err.message);
-      alert('Submission failed: ' + err.message);
+      alert('Failed to add to cart: ' + err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-blue-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-blue-900 to-blue-800 text-white p-6 rounded-t-lg shadow-lg overflow-hidden">
-          <img
-            src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=1200&auto=format&fit=crop"
-            alt="header"
-            className="absolute inset-0 w-full h-full object-cover opacity-10"
-          />
+        <div className="relative bg-blue-600 text-white p-6 rounded-t-lg shadow-lg">
           <div className="relative flex items-center gap-4">
             <img src="/medconnect logo.webp" alt="MedConnect" className="h-16 w-auto" />
             <div>
@@ -267,8 +350,8 @@ export default function WeightLossForm() {
         </div>
 
         {/* Alert */}
-        <div className="bg-lime-50 border-l-4 border-lime-400 p-4 flex items-start gap-3">
-          <AlertCircle className="text-lime-600 flex-shrink-0 mt-0.5" size={20} />
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 flex items-start gap-3">
+          <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
           <div className="text-sm text-black">
             <p className="font-semibold mb-1">All fields marked with * are required and must be filled.</p>
             <p className="text-gray-700">***FAILURE TO PROVIDE PATIENT'S SPECIFIC INFORMATION WILL CAUSE DELAYS***</p>
@@ -276,10 +359,10 @@ export default function WeightLossForm() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white shadow-xl rounded-b-lg">
+        <form onSubmit={handleAddToCart} className="bg-white shadow-xl rounded-b-lg">
           {/* Patient Section */}
           <div className="p-8 border-b-2 border-gray-100">
-            <h2 className="text-xl font-bold text-blue-900 mb-6 pb-2 border-b-2 border-lime-400">PATIENT INFORMATION</h2>
+            <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg">PATIENT INFORMATION</h2>
             
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -288,7 +371,7 @@ export default function WeightLossForm() {
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.firstName}
                     onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                   />
@@ -298,7 +381,7 @@ export default function WeightLossForm() {
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.lastName}
                     onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                   />
@@ -314,7 +397,7 @@ export default function WeightLossForm() {
                     required
                     min="1"
                     max="12"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.dobMonth}
                     onChange={(e) => setFormData({...formData, dobMonth: e.target.value})}
                   />
@@ -324,7 +407,7 @@ export default function WeightLossForm() {
                     required
                     min="1"
                     max="31"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.dobDay}
                     onChange={(e) => setFormData({...formData, dobDay: e.target.value})}
                   />
@@ -334,7 +417,7 @@ export default function WeightLossForm() {
                     required
                     min="1900"
                     max="2025"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.dobYear}
                     onChange={(e) => setFormData({...formData, dobYear: e.target.value})}
                   />
@@ -381,13 +464,13 @@ export default function WeightLossForm() {
                     type="text"
                     required
                     placeholder="City"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.city}
                     onChange={(e) => setFormData({...formData, city: e.target.value})}
                   />
                   <select
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.state}
                     onChange={(e) => setFormData({...formData, state: e.target.value})}
                   >
@@ -398,7 +481,7 @@ export default function WeightLossForm() {
                     type="text"
                     required
                     placeholder="Zip Code"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.zip}
                     onChange={(e) => setFormData({...formData, zip: e.target.value})}
                   />
@@ -410,7 +493,7 @@ export default function WeightLossForm() {
                   <label className="block text-sm font-semibold text-black mb-2">Bill to *</label>
                   <select
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.billTo}
                     onChange={(e) => setFormData({...formData, billTo: e.target.value})}
                   >
@@ -424,7 +507,7 @@ export default function WeightLossForm() {
                   <label className="block text-sm font-semibold text-black mb-2">Deliver to *</label>
                   <select
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.deliverTo}
                     onChange={(e) => setFormData({...formData, deliverTo: e.target.value})}
                   >
@@ -439,7 +522,7 @@ export default function WeightLossForm() {
 
           {/* Prescription Section */}
           <div className="p-8 border-b-2 border-gray-100">
-            <h2 className="text-xl font-bold text-blue-900 mb-6 pb-2 border-b-2 border-lime-400">PRESCRIPTION</h2>
+            <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg">PRESCRIPTION</h2>
             
             <div className="space-y-8">
               <div className="rounded-2xl border-2 border-blue-100 shadow-sm overflow-hidden">
@@ -547,7 +630,7 @@ export default function WeightLossForm() {
 
           {/* Physician Section */}
           <div className="p-8">
-            <h2 className="text-xl font-bold text-blue-900 mb-6 pb-2 border-b-2 border-lime-400">PHYSICIAN INFORMATION</h2>
+            <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg">PHYSICIAN INFORMATION</h2>
             
             <div className="space-y-6">
               <div>
@@ -604,7 +687,7 @@ export default function WeightLossForm() {
                   <input
                     type="tel"
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicPhone}
                     onChange={(e) => setFormData({...formData, clinicPhone: e.target.value})}
                   />
@@ -614,7 +697,7 @@ export default function WeightLossForm() {
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.npi}
                     onChange={(e) => setFormData({...formData, npi: e.target.value})}
                   />
@@ -646,13 +729,13 @@ export default function WeightLossForm() {
                     type="text"
                     required
                     placeholder="City"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicCity}
                     onChange={(e) => setFormData({...formData, clinicCity: e.target.value})}
                   />
                   <select
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicState}
                     onChange={(e) => setFormData({...formData, clinicState: e.target.value})}
                   >
@@ -663,7 +746,7 @@ export default function WeightLossForm() {
                     type="text"
                     required
                     placeholder="Zip Code"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicZip}
                     onChange={(e) => setFormData({...formData, clinicZip: e.target.value})}
                   />
@@ -683,15 +766,42 @@ export default function WeightLossForm() {
             </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Price Summary and Add to Cart Button */}
           <div className="px-8 pb-8">
+            {totalPrice > 0 && (
+              <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-6 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-lg font-semibold text-gray-900">Selected Medications:</span>
+                  <span className="text-sm text-gray-600">
+                    {(formData.semaglutideVialSelections?.length || 0) +
+                      (formData.semaglutideRdtSelections?.length || 0) +
+                      (formData.tirzepatideVialSelections?.length || 0) +
+                      (formData.tirzepatide20Selections?.length || 0) +
+                      (formData.tirzepatide30Selections?.length || 0) +
+                      (formData.commonlyPrescribedSelections?.length || 0)} item(s)
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-4 border-t-2 border-blue-200">
+                  <span className="text-2xl font-bold text-blue-900">Total Price:</span>
+                  <span className="text-3xl font-bold text-blue-600">${totalPrice.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
             <button
-              disabled={submitting}
+              disabled={submitting || totalPrice === 0}
               type="submit"
-              className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-4 px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-60"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
-              {submitting ? 'Submitting...' : 'Submit Prescription'}
+              <ShoppingCart size={24} />
+              {submitting ? 'Adding to Cart...' : totalPrice === 0 ? 'Select Medications to Continue' : `Add Medicines to Cart - $${totalPrice.toFixed(2)}`}
             </button>
+
+            {totalPrice === 0 && (
+              <p className="text-center text-sm text-gray-600 mt-3">
+                Please select at least one medication above to continue
+              </p>
+            )}
           </div>
         </form>
 

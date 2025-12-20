@@ -3,6 +3,7 @@ import { createSupabaseServiceRole } from "@/lib/supabase/server";
 import { sendEmailWithAttachment } from "@/lib/email";
 import path from "path";
 import fs from "fs";
+import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
     const suffix = formData.get("suffix") as string;
     const email = formData.get("email") as string;
     const phone = formData.get("phone") as string;
+    const password = formData.get("password") as string;
     const companyName = formData.get("companyName") as string;
     const businessType = formData.get("businessType") as string;
     const website = formData.get("website") as string;
@@ -46,12 +48,16 @@ export async function POST(req: NextRequest) {
     const businessLicenseFile = formData.get("business_license") as File | null;
 
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !companyName || !website || !taxIdEin || !npiNumber || !addressLine1 || !city || !state || !zipCode || !referredBy) {
+    if (!firstName || !lastName || !email || !phone || !password || !companyName || !website || !taxIdEin || !npiNumber || !addressLine1 || !city || !state || !zipCode || !referredBy) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
+
+    // Hash the password
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
 
 
     // Check if email already exists in provider_accounts
@@ -143,6 +149,7 @@ export async function POST(req: NextRequest) {
       suffix: suffix || null,
       email,
       phone,
+      password_hash: passwordHash,
       company_name: companyName,
       business_type: businessType,
       website,
@@ -234,12 +241,12 @@ export async function POST(req: NextRequest) {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Alpha BioMed Provider Application</h1>
+              <h1>MedConnect Provider Application</h1>
             </div>
             <div class="content">
               <p>Dear ${firstName} ${lastName},</p>
 
-              <p>Thank you for submitting your provider application to <strong>Alpha BioMed</strong>! We're excited to begin the onboarding process with you.</p>
+              <p>Thank you for submitting your provider application to <strong>MedConnect</strong>! We're excited to begin the onboarding process with you.</p>
 
               <div class="info-box">
                 <h2>Next Steps - Action Required</h2>
@@ -268,12 +275,12 @@ export async function POST(req: NextRequest) {
               <p>If you have any questions or need assistance, please don't hesitate to contact our provider support team.</p>
 
               <p>Best regards,<br>
-              <strong>Alpha BioMed Provider Relations Team</strong></p>
+              <strong>MedConnect Provider Relations Team</strong></p>
             </div>
             <div class="footer">
-              <p>Alpha BioMed | Provider Services</p>
+              <p>MedConnect | Provider Services</p>
               <p>This is an automated message. Please do not reply directly to this email.</p>
-              <p>&copy; ${new Date().getFullYear()} Alpha BioMed. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} MedConnect. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -283,7 +290,7 @@ export async function POST(req: NextRequest) {
       // Send email with attachment
       await sendEmailWithAttachment({
         to: email,
-        subject: "Alpha BioMed Provider Application - Action Required: Sign Agreement",
+        subject: "MedConnect Provider Application - Action Required: Sign Agreement",
         html: emailHtml,
         attachments: fs.existsSync(dummyFormPath)
           ? [

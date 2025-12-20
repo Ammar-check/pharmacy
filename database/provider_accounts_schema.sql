@@ -2,7 +2,7 @@
 -- PROVIDER ACCOUNTS SCHEMA
 -- ========================================
 -- This schema creates tables to handle provider signup and document management
--- for the Alpha BioMed pharmacy platform.
+-- for the MedConnect pharmacy platform.
 
 -- Drop existing tables if they exist (use with caution in production)
 -- DROP TABLE IF EXISTS provider_documents CASCADE;
@@ -224,7 +224,7 @@ CREATE POLICY "Admins can view all documents"
 -- 6. COMMENTS FOR DOCUMENTATION
 -- ========================================
 
-COMMENT ON TABLE provider_accounts IS 'Stores provider account information for Alpha BioMed pharmacy platform';
+COMMENT ON TABLE provider_accounts IS 'Stores provider account information for MedConnect pharmacy platform';
 COMMENT ON TABLE provider_documents IS 'Stores references to documents uploaded by providers';
 
 COMMENT ON COLUMN provider_accounts.status IS 'Account status: pending_signature, signature_sent, signature_received, approved, rejected, suspended';

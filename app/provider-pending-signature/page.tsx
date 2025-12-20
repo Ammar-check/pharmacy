@@ -45,7 +45,7 @@ function ProviderPendingContent() {
               Application Submitted Successfully!
             </h1>
             <p className="text-lg text-gray-600">
-              Thank you for applying to become an Alpha BioMed provider partner.
+              Thank you for applying to become a MedConnect provider partner.
             </p>
           </div>
 
@@ -85,7 +85,7 @@ function ProviderPendingContent() {
                     Check Your Email Inbox
                   </h3>
                   <p className="text-gray-600">
-                    Look for an email from Alpha BioMed with the subject "Provider Application - Action Required: Sign Agreement". If you don't see it within a few minutes, please check your spam/junk folder.
+                    Look for an email from MedConnect with the subject "Provider Application - Action Required: Sign Agreement". If you don't see it within a few minutes, please check your spam/junk folder.
                   </p>
                 </div>
               </div>

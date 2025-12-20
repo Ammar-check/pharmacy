@@ -22,6 +22,8 @@ export default function ProviderSignupPage() {
     suffix: "",
     email: "",
     phone: "",
+    password: "",
+    confirmPassword: "",
 
     // Business Profile
     companyName: "",
@@ -97,6 +99,8 @@ export default function ProviderSignupPage() {
     if (!formData.lastName.trim()) return "Last name is required";
     if (!formData.email.trim()) return "Email is required";
     if (!formData.phone.trim()) return "Phone number is required";
+    if (!formData.password.trim()) return "Password is required";
+    if (!formData.confirmPassword.trim()) return "Please confirm your password";
     if (!formData.companyName.trim()) return "Company name is required";
     if (!formData.website.trim()) return "Website is required";
     if (!formData.taxIdEin.trim()) return "Tax ID / EIN is required";
@@ -111,6 +115,14 @@ export default function ProviderSignupPage() {
     const emailRegex = /^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(formData.email)) {
       return "Please enter a valid email address";
+    }
+
+    // Password validation
+    if (formData.password.length < 8) {
+      return "Password must be at least 8 characters long";
+    }
+    if (formData.password !== formData.confirmPassword) {
+      return "Passwords do not match";
     }
 
     // Phone validation (basic US format)
@@ -204,7 +216,7 @@ export default function ProviderSignupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <img src="/medconnect logo.webp" alt="Alpha BioMed" className="h-20 w-auto" />
+            <img src="/medconnect logo.webp" alt="MedConnect" className="h-20 w-auto" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Provider Intake</h1>
           <p className="text-gray-600">Complete the form below to create your provider account</p>
@@ -305,6 +317,40 @@ export default function ProviderSignupPage() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">US-based mobile number</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Password<span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="Minimum 8 characters"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                  required
+                  minLength={8}
+                />
+                <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Confirm Password<span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  placeholder="Re-enter your password"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                  required
+                />
               </div>
             </div>
           </section>
@@ -692,7 +738,7 @@ export default function ProviderSignupPage() {
                 className="w-5 h-5 text-blue-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 mt-0.5"
               />
               <span className="ml-3 text-sm text-gray-700">
-                By registering, you consent to receive email and/or SMS notifications, alerts, and occasional marketing communication from Alpha BioMed. Message frequency varies. Message & data rates may apply. See our{" "}
+                By registering, you consent to receive email and/or SMS notifications, alerts, and occasional marketing communication from MedConnect. Message frequency varies. Message & data rates may apply. See our{" "}
                 <a href="/terms" className="text-blue-600 hover:underline">Terms & Conditions</a> and{" "}
                 <a href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</a>.
               </span>

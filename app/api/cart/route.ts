@@ -71,8 +71,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { product_id, quantity, selected_variant, price_at_add } = await req.json();
+    const body = await req.json();
+    const { product_id, productName, price, quantity, selected_variant, price_at_add, formType, formSubmissionId, prescriptionDetails } = body;
 
+    // Handle prescription medication (custom item without product_id)
+    if (!product_id && productName && price !== undefined) {
+      if (!quantity || quantity < 1) {
+        return NextResponse.json({ error: "Invalid quantity" }, { status: 400 });
+      }
+
+      // Add prescription medication as custom cart item
+      const { data, error } = await supabase
+        .from("cart_items")
+        .insert([
+          {
+            user_id: session.user.id,
+            product_id: null,
+            custom_product_name: productName,
+            quantity,
+            price_at_add: price,
+            selected_variant: JSON.stringify({
+              formType,
+              formSubmissionId,
+              prescriptionDetails
+            })
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error adding prescription to cart:", error);
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+
+      return NextResponse.json({ cart_item: data, message: "Prescription added to cart" }, { status: 201 });
+    }
+
+    // Handle regular product
     if (!product_id || !quantity || quantity < 1) {
       return NextResponse.json({ error: "Invalid product or quantity" }, { status: 400 });
     }

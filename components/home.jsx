@@ -108,16 +108,18 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen bg-gray-50 py-12 px-4">
-      {/* Left Wave Decoration - Positioned at intersection of first and second row */}
-      <svg className="absolute left-[66px] md:left-[98px] top-[115px] md:top-[155px] w-24 h-24 md:w-32 md:h-32 text-blue-600 opacity-70 z-10" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Left Wave Decoration - Positioned at end of first card */}
+      {/* Mobile: After first card vertically | Desktop: At intersection of first and second row */}
+      <svg className="absolute left-4 top-[280px] sm:left-8 sm:top-[290px] md:left-[98px] md:top-[153px] w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 text-blue-600 opacity-70 z-10" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M0 50 Q 7.5 45, 15 50 Q 22.5 55, 30 50 Q 37.5 45, 45 50 Q 52.5 55, 60 50 Q 67.5 45, 75 50 Q 82.5 55, 90 50 Q 97.5 45, 105 50 Q 112.5 55, 120 50" stroke="currentColor" strokeWidth="2" fill="none" />
         <path d="M0 60 Q 7.5 55, 15 60 Q 22.5 65, 30 60 Q 37.5 55, 45 60 Q 52.5 65, 60 60 Q 67.5 55, 75 60 Q 82.5 65, 90 60 Q 97.5 55, 105 60 Q 112.5 65, 120 60" stroke="currentColor" strokeWidth="2" fill="none" />
         <path d="M0 70 Q 7.5 65, 15 70 Q 22.5 75, 30 70 Q 37.5 65, 45 70 Q 52.5 75, 60 70 Q 67.5 65, 75 70 Q 82.5 75, 90 70 Q 97.5 65, 105 70 Q 112.5 75, 120 70" stroke="currentColor" strokeWidth="2" fill="none" />
         <path d="M0 80 Q 7.5 75, 15 80 Q 22.5 85, 30 80 Q 37.5 75, 45 80 Q 52.5 85, 60 80 Q 67.5 75, 75 80 Q 82.5 85, 90 80 Q 97.5 75, 105 80 Q 112.5 85, 120 80" stroke="currentColor" strokeWidth="2" fill="none" />
       </svg>
 
-      {/* Right Wave Decoration - Positioned at intersection of first and second row */}
-      <svg className="absolute right-[66px] md:right-[98px] top-[585px] md:top-[625px] w-24 h-24 md:w-32 md:h-32 text-blue-600 opacity-70 z-10" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Right Wave Decoration - Positioned at end of last card on right */}
+      {/* Mobile: After last card vertically | Desktop: At end of second row on right side */}
+      <svg className="absolute right-4 top-[1270px] sm:right-8 sm:top-[1280px] md:right-[98px] md:top-[625px] w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 text-blue-600 opacity-70 z-10" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M0 50 Q 7.5 45, 15 50 Q 22.5 55, 30 50 Q 37.5 45, 45 50 Q 52.5 55, 60 50 Q 67.5 45, 75 50 Q 82.5 55, 90 50 Q 97.5 45, 105 50 Q 112.5 55, 120 50" stroke="currentColor" strokeWidth="2" fill="none" />
         <path d="M0 60 Q 7.5 55, 15 60 Q 22.5 65, 30 60 Q 37.5 55, 45 60 Q 52.5 65, 60 60 Q 67.5 55, 75 60 Q 82.5 65, 90 60 Q 97.5 55, 105 60 Q 112.5 65, 120 60" stroke="currentColor" strokeWidth="2" fill="none" />
         <path d="M0 70 Q 7.5 65, 15 70 Q 22.5 75, 30 70 Q 37.5 65, 45 70 Q 52.5 75, 60 70 Q 67.5 65, 75 70 Q 82.5 75, 90 70 Q 97.5 65, 105 70 Q 112.5 75, 120 70" stroke="currentColor" strokeWidth="2" fill="none" />

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AdminLogoutButton from "@/components/admin-logout-button";
 
 type Product = {
@@ -17,9 +18,11 @@ type Product = {
 };
 
 export default function AdminProductsContent({ products }: { products: Product[] }) {
+  const router = useRouter();
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
   // Get unique categories
   const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
@@ -33,6 +36,32 @@ export default function AdminProductsContent({ products }: { products: Product[]
   });
 
   const statuses = ["draft", "active", "archived", "out_of_stock"];
+
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    if (!confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingProductId(productId);
+
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete product");
+      }
+
+      // Refresh the page to show updated list
+      router.refresh();
+    } catch (error: any) {
+      alert(error.message || "An error occurred while deleting the product");
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50">
@@ -241,10 +270,10 @@ export default function AdminProductsContent({ products }: { products: Product[]
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
-                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-0">
+                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                           <Link
                             href={`/admin/products/edit/${product.id}`}
-                            className="text-blue-600 hover:text-blue-900 sm:mr-4"
+                            className="text-blue-600 hover:text-blue-900"
                           >
                             Edit
                           </Link>
@@ -255,6 +284,13 @@ export default function AdminProductsContent({ products }: { products: Product[]
                           >
                             View
                           </Link>
+                          <button
+                            onClick={() => handleDeleteProduct(product.id, product.name)}
+                            disabled={deletingProductId === product.id}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                          >
+                            {deletingProductId === product.id ? "Deleting..." : "Delete"}
+                          </button>
                         </div>
                       </td>
                     </tr>
