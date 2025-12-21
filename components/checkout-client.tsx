@@ -16,9 +16,14 @@ type CartItem = {
   };
 };
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
+// Ensure Stripe key is available
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+if (!publishableKey) {
+  console.error('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set');
+}
+
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 export default function CheckoutClient({
   cartItems,
@@ -107,6 +112,22 @@ export default function CheckoutClient({
       borderRadius: '8px',
     },
   };
+
+  // Check if Stripe is configured
+  if (!stripePromise) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+            <h2 className="text-2xl font-bold text-red-900 mb-4">Payment System Not Configured</h2>
+            <p className="text-red-700">
+              The payment system is not properly configured. Please contact support.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">

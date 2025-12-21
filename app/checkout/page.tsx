@@ -10,10 +10,10 @@ export default async function CheckoutPage() {
   const supabase = await createSupabaseServerClient();
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/create-account");
   }
 
@@ -29,7 +29,7 @@ export default async function CheckoutPage() {
         stock_quantity
       )
     `)
-    .eq("user_id", session.user.id);
+    .eq("user_id", user.id);
 
   if (error) {
     console.error("Error fetching cart:", error);
@@ -43,7 +43,7 @@ export default async function CheckoutPage() {
   return (
     <main>
       <Navbar />
-      <CheckoutClient cartItems={cartItems} userEmail={session.user.email || ""} />
+      <CheckoutClient cartItems={cartItems} userEmail={user.email || ""} />
       <Footer />
     </main>
   );

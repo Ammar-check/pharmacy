@@ -71,14 +71,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for pending_signature status
-    if (provider.status === "pending_signature") {
+    // Check for pending_signature, signature_sent, or signature_opened status
+    if (["pending_signature", "signature_sent", "signature_opened"].includes(provider.status)) {
       return NextResponse.json(
         {
           success: false,
           pending_signature: true,
           email: provider.email,
-          error: "Your document signature is pending. Please sign and return the agreement form sent to your email.",
+          signatureUrl: provider.docuseal_signature_url,
+          error: provider.status === "pending_signature"
+            ? "Your document signature is pending. Please check your email for the signature link."
+            : "Your document signature is pending. Please complete the electronic signature form sent to your email.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Check for signature_declined status
+    if (provider.status === "signature_declined") {
+      return NextResponse.json(
+        {
+          error: "You have declined the provider agreement. Please contact support if you wish to reapply.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Check for signature_expired status
+    if (provider.status === "signature_expired") {
+      return NextResponse.json(
+        {
+          error: "Your signature request has expired. Please contact support to receive a new signature link.",
         },
         { status: 403 }
       );

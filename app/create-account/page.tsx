@@ -40,7 +40,10 @@ export default function CreateAccountPage() {
         const errorData = await providerResponse.json();
         if (errorData.pending_signature) {
           setLoading(false);
-          router.push(`/provider-pending-signature?email=${encodeURIComponent(errorData.email)}`);
+          const signatureUrlParam = errorData.signatureUrl
+            ? `&signatureUrl=${encodeURIComponent(errorData.signatureUrl)}`
+            : '';
+          router.push(`/provider-pending-signature?email=${encodeURIComponent(errorData.email)}${signatureUrlParam}`);
           return;
         }
         setError(errorData.error);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceRole } from "@/lib/supabase/server";
 import { sendEmailWithAttachment } from "@/lib/email";
+import { createProviderSignatureSubmission } from "@/lib/docuseal";
 import path from "path";
 import fs from "fs";
 import bcrypt from "bcryptjs";
@@ -210,103 +211,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Send email with MedConnect_Provider_Terms_Form.pdf attachment
-    try {
-      const dummyFormPath = path.join(process.cwd(), "public", "MedConnect_Provider_Terms_Form.pdf");
+    // ========================================
+    // CREATE DOCUSEAL E-SIGNATURE SUBMISSION
+    // ========================================
+    // Replace manual PDF email with automated DocuSeal signature request
+    const docuSealResult = await createProviderSignatureSubmission({
+      email,
+      firstName,
+      lastName,
+      companyName,
+      phone,
+      npiNumber,
+      taxIdEin,
+      addressLine1,
+      city,
+      state,
+      zipCode,
+    });
 
-      // Check if file exists
-      if (!fs.existsSync(dummyFormPath)) {
-        console.error("MedConnect_Provider_Terms_Form.pdf not found at:", dummyFormPath);
-      }
-
-      // Prepare email content
-      const emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
-            .footer { background-color: #1f2937; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; font-size: 12px; }
-            .button { display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-            .info-box { background-color: white; padding: 15px; border-left: 4px solid #2563eb; margin: 15px 0; border-radius: 4px; }
-            h1 { margin: 0; font-size: 24px; }
-            h2 { color: #2563eb; font-size: 18px; margin-top: 20px; }
-            ul { padding-left: 20px; }
-            li { margin-bottom: 8px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>MedConnect Provider Application</h1>
-            </div>
-            <div class="content">
-              <p>Dear ${firstName} ${lastName},</p>
-
-              <p>Thank you for submitting your provider application to <strong>MedConnect</strong>! We're excited to begin the onboarding process with you.</p>
-
-              <div class="info-box">
-                <h2>Next Steps - Action Required</h2>
-                <p>To complete your application, please follow these important steps:</p>
-                <ol>
-                  <li><strong>Review the Attached Agreement:</strong> We've attached a provider agreement form (PDF) to this email. Please read it carefully to understand the terms and conditions of our partnership.</li>
-                  <li><strong>Sign the Agreement:</strong> Print the form, sign it with all required credentials (name, date, signature), and scan or photograph the completed document.</li>
-                  <li><strong>Return the Signed Document:</strong> Reply to this email with the signed agreement attached, or upload it through your provider portal.</li>
-                </ol>
-              </div>
-
-              <div class="info-box">
-                <h2>Application Summary</h2>
-                <ul>
-                  <li><strong>Applicant:</strong> ${firstName} ${lastName} ${suffix || ""}</li>
-                  <li><strong>Company:</strong> ${companyName}</li>
-                  <li><strong>Email:</strong> ${email}</li>
-                  <li><strong>Phone:</strong> ${phone}</li>
-                  <li><strong>NPI Number:</strong> ${npiNumber}</li>
-                  <li><strong>Application Status:</strong> Pending Signature</li>
-                </ul>
-              </div>
-
-              <p><strong>Important:</strong> Your account will be activated once we receive your signed agreement. This typically takes 1-2 business days after submission.</p>
-
-              <p>If you have any questions or need assistance, please don't hesitate to contact our provider support team.</p>
-
-              <p>Best regards,<br>
-              <strong>MedConnect Provider Relations Team</strong></p>
-            </div>
-            <div class="footer">
-              <p>MedConnect | Provider Services</p>
-              <p>This is an automated message. Please do not reply directly to this email.</p>
-              <p>&copy; ${new Date().getFullYear()} MedConnect. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      // Send email with attachment
-      await sendEmailWithAttachment({
-        to: email,
-        subject: "MedConnect Provider Application - Action Required: Sign Agreement",
-        html: emailHtml,
-        attachments: fs.existsSync(dummyFormPath)
-          ? [
-            {
-              filename: "Provider_Agreement_Form.pdf",
-              path: dummyFormPath,
-            },
-          ]
-          : [],
-      });
-
-      console.log(`Provider signup email sent successfully to: ${email}`);
-    } catch (emailError) {
-      console.error("Error sending email:", emailError);
-      // Don't fail the request if email fails - the data is already saved
+    if (!docuSealResult.success) {
+      console.error("Failed to create DocuSeal submission:", docuSealResult.error);
+      // Return error - signature submission is critical for the flow
+      return NextResponse.json(
+        { error: "Failed to create signature request. Please try again or contact support." },
+        { status: 500 }
+      );
     }
+
+    // Update provider account with DocuSeal submission details
+    const { error: docuSealUpdateError } = await supabase
+      .from("provider_accounts")
+      .update({
+        status: "signature_sent",
+        docuseal_submission_id: docuSealResult.submissionId?.toString(),
+        docuseal_submitter_uuid: docuSealResult.submitterUuid,
+        docuseal_submitter_slug: docuSealResult.submitterSlug,
+        docuseal_signature_url: docuSealResult.signatureUrl,
+        signature_sent_at: new Date().toISOString(),
+      })
+      .eq("id", insertedProvider.id);
+
+    if (docuSealUpdateError) {
+      console.error("Error updating provider with DocuSeal data:", docuSealUpdateError);
+      // Don't fail the request - DocuSeal submission was successful
+    }
+
+    console.log(`DocuSeal signature request created successfully for: ${email}`, {
+      submissionId: docuSealResult.submissionId,
+      signatureUrl: docuSealResult.signatureUrl,
+    });
 
     // Return success response
     return NextResponse.json(
@@ -315,6 +268,7 @@ export async function POST(req: NextRequest) {
         message: "Provider application submitted successfully",
         providerId: insertedProvider.id,
         email: insertedProvider.email,
+        signatureUrl: docuSealResult.signatureUrl,
       },
       { status: 201 }
     );

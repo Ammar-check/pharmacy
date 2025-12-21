@@ -9,12 +9,21 @@ function ProviderPendingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
+  const [signatureUrl, setSignatureUrl] = useState<string>("");
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
+    const signatureUrlParam = searchParams.get("signatureUrl");
+
     if (emailParam) {
       setEmail(emailParam);
-    } else {
+    }
+
+    if (signatureUrlParam) {
+      setSignatureUrl(signatureUrlParam);
+    }
+
+    if (!emailParam) {
       // If no email parameter, redirect to home page after 3 seconds
       setTimeout(() => {
         router.push("/");
@@ -85,7 +94,7 @@ function ProviderPendingContent() {
                     Check Your Email Inbox
                   </h3>
                   <p className="text-gray-600">
-                    Look for an email from MedConnect with the subject "Provider Application - Action Required: Sign Agreement". If you don't see it within a few minutes, please check your spam/junk folder.
+                    Look for an email from DocuSeal with the subject containing your provider agreement. The email includes a secure link to electronically sign your agreement. If you don't see it within a few minutes, please check your spam/junk folder.
                   </p>
                 </div>
               </div>
@@ -100,7 +109,7 @@ function ProviderPendingContent() {
                     Review the Provider Agreement
                   </h3>
                   <p className="text-gray-600">
-                    Open the attached PDF document and carefully read through all terms and conditions of the provider partnership agreement. Make sure you understand all aspects of the partnership before proceeding.
+                    Click the "Sign Document" link in the email or use the button below. Carefully read through all terms and conditions of the provider partnership agreement online. Take your time to understand all aspects of the partnership.
                   </p>
                 </div>
               </div>
@@ -112,25 +121,10 @@ function ProviderPendingContent() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-900 text-lg mb-1">
-                    Sign the Agreement
+                    Sign Electronically
                   </h3>
                   <p className="text-gray-600">
-                    Print the agreement form, sign it with all required credentials (including your full name, date, and signature), and scan or photograph the completed document.
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 4 */}
-              <div className="flex items-start">
-                <div className="flex-shrink-0 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4">
-                  4
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 text-lg mb-1">
-                    Return the Signed Document
-                  </h3>
-                  <p className="text-gray-600">
-                    Reply to the email with the signed agreement attached, or upload it through your provider portal once it becomes available. Our team will review your submission within 1-2 business days.
+                    Use the secure DocuSeal interface to add your electronic signature. Simply click, type, or draw your signature directly in the browser - no printing or scanning required! The process is fast, secure, and legally binding.
                   </p>
                 </div>
               </div>
@@ -185,8 +179,9 @@ function ProviderPendingContent() {
           <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6 mb-8">
             <h3 className="font-bold text-yellow-900 text-lg mb-2">Important Notes</h3>
             <ul className="list-disc list-inside space-y-2 text-yellow-800">
-              <li>Your account will remain in "Pending Signature" status until we receive your signed agreement.</li>
-              <li>The review process typically takes 1-2 business days after we receive your signed documents.</li>
+              <li>Your account will remain in "Pending Signature" status until you complete the electronic signature.</li>
+              <li>The signature process only takes 2-3 minutes and can be completed from any device.</li>
+              <li>Once signed, the review process typically takes 1-2 business days.</li>
               <li>You will receive a confirmation email once your account is approved and activated.</li>
               <li>If you have any questions, please contact our provider support team.</li>
             </ul>
@@ -194,20 +189,22 @@ function ProviderPendingContent() {
 
           {/* Action Buttons */}
           <div className="flex flex-col md:flex-row gap-4 justify-center">
+            {signatureUrl && (
+              <button
+                onClick={() => window.open(signatureUrl, "_blank")}
+                className="flex items-center justify-center px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition shadow-lg hover:shadow-xl">
+                <FileText className="mr-2 h-5 w-5" />
+                Open Signature Form
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </button>
+            )}
+
             <button
               onClick={() => router.push("/")}
               className="flex items-center justify-center px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition shadow-lg hover:shadow-xl"
             >
               Return to Home
               <ArrowRight className="ml-2 h-5 w-5" />
-            </button>
-
-            <button
-              onClick={() => window.open(`mailto:${email}`, "_blank")}
-              className="flex items-center justify-center px-8 py-4 bg-white hover:bg-gray-50 text-blue-600 font-bold rounded-lg transition border-2 border-blue-600"
-            >
-              <Mail className="mr-2 h-5 w-5" />
-              Open Email Client
             </button>
           </div>
 

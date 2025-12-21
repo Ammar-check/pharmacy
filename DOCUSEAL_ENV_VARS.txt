@@ -1,0 +1,16 @@
+# DocuSeal Configuration Environment Variables
+
+# DocuSeal API Authentication
+DOCUSEAL_API_KEY=hJLdJKnsJUq13uQQMUSg2uNiQxZDrNn1Lx1PdC1AD7h
+
+# DocuSeal API URL (default: https://api.docuseal.com)
+DOCUSEAL_API_URL=https://api.docuseal.com
+
+# DocuSeal Template Slug for Provider Agreement
+DOCUSEAL_TEMPLATE_SLUG=EnSzXPh7cGgjQC
+
+# Webhook Secret for signature validation
+DOCUSEAL_WEBHOOK_SECRET=whs_MedConnect2024_9k3JmN7pQr5sXvL2wY8tZb4nFg6hCd1aE0iUoP
+
+# Public App URL (for redirect after signature completion)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
