@@ -87,7 +87,7 @@ export default function ShoppingCartClient({ cartItems: initialCartItems }: { ca
     0
   );
   const tax = subtotal * 0.08; // 8% tax
-  const shipping = cartItems.length > 0 ? 9.99 : 0;
+  const shipping = 0; // Free shipping for all products
   const total = subtotal + tax + shipping;
 
   return (
@@ -216,7 +216,7 @@ export default function ShoppingCartClient({ cartItems: initialCartItems }: { ca
                   </div>
                   <div className="flex justify-between text-gray-700">
                     <span>Shipping</span>
-                    <span>${shipping.toFixed(2)}</span>
+                    <span className="text-green-600 font-semibold">FREE</span>
                   </div>
                   <div className="border-t border-gray-200 pt-3">
                     <div className="flex justify-between text-xl font-bold text-gray-900">
