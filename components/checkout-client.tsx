@@ -55,7 +55,7 @@ export default function CheckoutClient({
     0
   );
   const tax = subtotal * 0.08; // 8% tax
-  const shipping = 9.99;
+  const shipping = 0; // Free shipping
   const total = subtotal + tax + shipping;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -405,7 +405,7 @@ export default function CheckoutClient({
                 </div>
                 <div className="flex justify-between text-gray-700">
                   <span>Shipping</span>
-                  <span>${shipping.toFixed(2)}</span>
+                  <span className="text-green-600 font-semibold">FREE</span>
                 </div>
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between text-xl font-bold text-gray-900">

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       0
     );
     const tax = orderData.tax_amount || subtotal * 0.08;
-    const shipping = orderData.shipping_cost || 9.99;
+    const shipping = orderData.shipping_cost || 0; // Free shipping
     const total = subtotal + tax + shipping;
 
     console.log('Order totals calculated:', {
