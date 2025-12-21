@@ -1,10 +1,18 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import supabase from "@/lib/supabase/client";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ShoppingCart } from 'lucide-react';
 import SuccessMessage from './SuccessMessage';
+import { useRouter } from 'next/navigation';
+
+// Helper function to extract price from medication string
+const extractPrice = (medicationString) => {
+  const priceMatch = medicationString.match(/\$(\d+(?:\.\d{2})?)/);
+  return priceMatch ? parseFloat(priceMatch[1]) : 0;
+};
 
 export default function DermatologyForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: '',
     middleName: '',
@@ -48,84 +56,161 @@ export default function DermatologyForm() {
   });
 
   const states = [
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 
-    'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 
-    'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 
-    'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 
-    'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 
-    'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 
-    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 
+    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+    'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois',
+    'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts',
+    'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+    'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
+    'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
+    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
     'West Virginia', 'Wisconsin', 'Wyoming'
   ];
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [totalPrice, setTotalPrice] = useState(0);
 
-  const handleSubmit = async (e) => {
+  // Calculate total price whenever selections change
+  useEffect(() => {
+    let total = 0;
+    // Count all selected topicals
+    const topicalKeys = ['topical1', 'topical2', 'topical3', 'topical4', 'topical5', 'topical6', 'topical7', 'topical8', 'topical9'];
+    topicalKeys.forEach(key => {
+      if (formData[key]) {
+        // Find the corresponding option to get the price
+        const topicalOptions = [
+          'Doak CL/B10 Hydro Dermal Topical Suspension Cream 30mL ($145.00)',
+          'Lidocaine 23%/ Tetracaine 7% in Lipoderm',
+          'Tacrolimus 0.3% / Estriol 0.3% / Vit D 500 IU/gm Lipoderm 30gm ($145.00)',
+          'Hydrocortisone 1% / Lidocaine 2% Ointment',
+          'Doak PLO/ 40 mg Hydro Dermal Topical Suspension Cream ($155.00)',
+          'Niacin/ Caffeine 2%/2% Trans PLO 30ml ($150.00)',
+          'Tretinoin 0.05%/30mg/mL (30mL Trans PLO) ($140.00)',
+          'Minoxidil 10% Lipoderm',
+          'DERMA CUSTOM (please use DERMA notes to customize)'
+        ];
+        const index = parseInt(key.replace('topical', '')) - 1;
+        if (index >= 0 && index < topicalOptions.length) {
+          total += extractPrice(topicalOptions[index]);
+        }
+      }
+    });
+    setTotalPrice(total);
+  }, [formData.topical1, formData.topical2, formData.topical3, formData.topical4, formData.topical5, formData.topical6, formData.topical7, formData.topical8, formData.topical9]);
+
+  const handleAddToCart = async (e) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
+
     try {
+      // Require a signed-in Supabase user
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user) {
-        alert('Please sign in to submit the form.');
+        alert('Please sign in to add medicines to cart.');
         window.location.href = '/create-account';
         return;
       }
-      const res = await fetch('/api/form-submissions', {
+
+      // Collect all selected medications
+      const topicalOptions = [
+        'Doak CL/B10 Hydro Dermal Topical Suspension Cream 30mL ($145.00)',
+        'Lidocaine 23%/ Tetracaine 7% in Lipoderm',
+        'Tacrolimus 0.3% / Estriol 0.3% / Vit D 500 IU/gm Lipoderm 30gm ($145.00)',
+        'Hydrocortisone 1% / Lidocaine 2% Ointment',
+        'Doak PLO/ 40 mg Hydro Dermal Topical Suspension Cream ($155.00)',
+        'Niacin/ Caffeine 2%/2% Trans PLO 30ml ($150.00)',
+        'Tretinoin 0.05%/30mg/mL (30mL Trans PLO) ($140.00)',
+        'Minoxidil 10% Lipoderm',
+        'DERMA CUSTOM (please use DERMA notes to customize)'
+      ];
+
+      const allSelections = [];
+      const topicalKeys = ['topical1', 'topical2', 'topical3', 'topical4', 'topical5', 'topical6', 'topical7', 'topical8', 'topical9'];
+      topicalKeys.forEach((key, index) => {
+        if (formData[key]) {
+          allSelections.push(topicalOptions[index]);
+        }
+      });
+
+      if (allSelections.length === 0) {
+        alert('Please select at least one medication');
+        setSubmitting(false);
+        return;
+      }
+
+      // Submit form data first to store prescription details
+      const formRes = await fetch('/api/form-submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formType: 'dermatology', formData, email: formData.email }),
+        body: JSON.stringify({
+          formType: 'dermatology',
+          formData,
+          email: formData.email,
+          totalPrice
+        }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to submit');
-      setShowSuccess(true);
-      // Reset form
-      setFormData({
-        firstName: '', middleName: '', lastName: '', phoneNumber: '', allergies: '',
-        specificAddress: '', streetAddress: '', city: '', state: '', zip: '', deliverTo: '',
-        topical1: false, topical2: false, topical3: false, topical4: false, topical5: false,
-        topical6: false, topical7: false, topical8: false, topical9: false,
-        dermaNotesOral: '', dermaNotesTopical: '', notes: '', signature: '',
-        prescriberName: '', prescriptionDate: '', clinicName: '', phoneNumberPhysician: '',
-        clinicAddress: '', clinicCity: '', clinicState: '', clinicZip: '', npi: '', dea: '', email: ''
-      });
+      const formJson = await formRes.json();
+      if (!formRes.ok) throw new Error(formJson.error || 'Failed to save prescription details');
+
+      const submissionId = formJson.submissionId;
+
+      // Add each medication to cart with form reference
+      for (const medication of allSelections) {
+        const price = extractPrice(medication);
+
+        // Create a cart item for each medication
+        await fetch('/api/cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productName: medication,
+            price: price,
+            quantity: 1,
+            formType: 'dermatology',
+            formSubmissionId: submissionId,
+            prescriptionDetails: {
+              patientName: `${formData.firstName} ${formData.middleName} ${formData.lastName}`.trim(),
+              phoneNumber: formData.phoneNumber,
+              prescriber: formData.prescriberName
+            }
+          }),
+        });
+      }
+
+      // Redirect to cart
+      router.push('/cart');
     } catch (err) {
       setError(err.message);
-      alert('Submission failed: ' + err.message);
+      alert('Failed to add to cart: ' + err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-blue-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-blue-900 to-blue-800 text-white p-6 rounded-t-lg shadow-lg overflow-hidden">
-          <img
-            src="https://images.unsplash.com/photo-1579154204601-01588f351e67?q=80&w=1200&auto=format&fit=crop"
-            alt="header"
-            className="absolute inset-0 w-full h-full object-cover opacity-10"
-          />
+        <div className="relative bg-blue-600 text-white p-6 rounded-t-lg shadow-lg">
           <div className="relative flex items-center gap-4">
             <img src="/medconnect logo.webp" alt="MedConnect" className="h-16 w-auto" />
-            <div>
-              <h1 className="text-2xl font-bold mb-1">DERMATOLOGY PAD</h1>
-              <p className="text-sm opacity-90">123 Medical Plaza Drive, Suite 200, Springfield, IL 62701</p>
-              <p className="text-sm opacity-90">Ph: (555) 123-4567 | Fax: (555) 765-4321</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl md:text-2xl font-bold mb-1 break-words">DERMATOLOGY PAD</h1>
+              <p className="text-sm opacity-90 hidden md:block">123 Medical Plaza Drive, Suite 200, Springfield, IL 62701</p>
+              <p className="text-sm opacity-90 hidden md:block">Ph: (555) 123-4567 | Fax: (555) 765-4321</p>
             </div>
           </div>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white shadow-xl rounded-b-lg">
+        <form onSubmit={handleAddToCart} className="bg-white shadow-xl rounded-b-lg">
           {/* Patient Section */}
           <div className="p-8 border-b-2 border-gray-100">
-            <h2 className="text-xl font-bold text-blue-900 mb-2 pb-2 border-b-2 border-blue-400 text-center">PATIENT</h2>
+            <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg text-center uppercase tracking-wide">PATIENT</h2>
             <p className="text-sm text-gray-600 mb-6 text-center italic">IMPORTANT PATIENT INFORMATION</p>
-            
+
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -134,9 +219,9 @@ export default function DermatologyForm() {
                     type="text"
                     placeholder="First Name"
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   />
                 </div>
                 <div>
@@ -144,9 +229,9 @@ export default function DermatologyForm() {
                   <input
                     type="text"
                     placeholder="Middle Name"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.middleName}
-                    onChange={(e) => setFormData({...formData, middleName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
                   />
                 </div>
                 <div>
@@ -155,9 +240,9 @@ export default function DermatologyForm() {
                     type="text"
                     placeholder="Last Name"
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   />
                 </div>
               </div>
@@ -169,9 +254,9 @@ export default function DermatologyForm() {
                     type="tel"
                     placeholder="Phone Number"
                     required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.phoneNumber}
-                    onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                   />
                 </div>
                 <div>
@@ -179,9 +264,9 @@ export default function DermatologyForm() {
                   <input
                     type="text"
                     placeholder="Allergies"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.allergies}
-                    onChange={(e) => setFormData({...formData, allergies: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
                   />
                 </div>
               </div>
@@ -196,7 +281,7 @@ export default function DermatologyForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition mb-3"
                   value={formData.specificAddress}
-                  onChange={(e) => setFormData({...formData, specificAddress: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, specificAddress: e.target.value })}
                 />
               </div>
 
@@ -208,7 +293,7 @@ export default function DermatologyForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.streetAddress}
-                    onChange={(e) => setFormData({...formData, streetAddress: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, streetAddress: e.target.value })}
                   />
                 </div>
                 <div>
@@ -218,7 +303,7 @@ export default function DermatologyForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.city}
-                    onChange={(e) => setFormData({...formData, city: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   />
                 </div>
               </div>
@@ -229,7 +314,7 @@ export default function DermatologyForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.state}
-                    onChange={(e) => setFormData({...formData, state: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                   >
                     <option value="">Select State</option>
                     {states.map(state => <option key={state} value={state}>{state}</option>)}
@@ -242,7 +327,7 @@ export default function DermatologyForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.zip}
-                    onChange={(e) => setFormData({...formData, zip: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
                   />
                 </div>
               </div>
@@ -251,26 +336,26 @@ export default function DermatologyForm() {
                 <label className="block text-sm font-semibold text-black mb-3">Deliver to: *</label>
                 <div className="flex gap-8">
                   <label className="flex items-center">
-                    <input 
-                      type="radio" 
-                      name="deliverTo" 
-                      value="clinic" 
+                    <input
+                      type="radio"
+                      name="deliverTo"
+                      value="clinic"
                       required
                       className="mr-3 w-4 h-4 accent-blue-600"
                       checked={formData.deliverTo === 'clinic'}
-                      onChange={(e) => setFormData({...formData, deliverTo: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, deliverTo: e.target.value })}
                     />
                     <span className="text-sm text-gray-700">MD Office</span>
                   </label>
                   <label className="flex items-center">
-                    <input 
-                      type="radio" 
-                      name="deliverTo" 
-                      value="patient" 
+                    <input
+                      type="radio"
+                      name="deliverTo"
+                      value="patient"
                       required
                       className="mr-3 w-4 h-4 accent-blue-600"
                       checked={formData.deliverTo === 'patient'}
-                      onChange={(e) => setFormData({...formData, deliverTo: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, deliverTo: e.target.value })}
                     />
                     <span className="text-sm text-gray-700">Patient</span>
                   </label>
@@ -281,24 +366,24 @@ export default function DermatologyForm() {
 
           {/* Prescription Section */}
           <div className="p-8 border-b-2 border-gray-100">
-            <h2 className="text-xl font-bold text-white bg-gradient-to-r from-green-400 to-green-500 py-3 px-4 rounded-lg text-center mb-6">
+            <h2 className="text-xl font-bold text-white bg-blue-600 py-3 px-4 rounded-lg text-center mb-6 uppercase tracking-wide">
               PRESCRIPTION
             </h2>
 
             <div className="space-y-6">
-              <div className="bg-lime-50 border-2 border-lime-300 rounded-lg p-4">
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
                 <h3 className="text-lg font-bold text-black mb-4">TOPICALS / DERMAL COMPOUNDS</h3>
                 <p className="text-xs text-gray-700 mb-4 font-semibold">
                   PLEASE ADD QUANTITY WANTED AND DOSING INSTRUCTIONS ON EACH OF THE SELECTED ITEMS BELOW OR SELECT "USE AS DIRECTED"
                 </p>
 
                 <div className="space-y-3">
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical1}
-                      onChange={(e) => setFormData({...formData, topical1: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical1: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Doak CL/B10 Hydro Dermal Topical Suspension Cream 30mL ($145.00)</p>
@@ -306,96 +391,96 @@ export default function DermatologyForm() {
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical2}
-                      onChange={(e) => setFormData({...formData, topical2: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical2: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Lidocaine 23%/ Tetracaine 7% in Lipoderm</p>
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical3}
-                      onChange={(e) => setFormData({...formData, topical3: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical3: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Tacrolimus 0.3% / Estriol 0.3% / Vit D 500 IU/gm Lipoderm 30gm ($145.00)</p>
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical4}
-                      onChange={(e) => setFormData({...formData, topical4: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical4: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Hydrocortisone 1% / Lidocaine 2% Ointment</p>
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical5}
-                      onChange={(e) => setFormData({...formData, topical5: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical5: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Doak PLO/ 40 mg Hydro Dermal Topical Suspension Cream ($155.00)</p>
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical6}
-                      onChange={(e) => setFormData({...formData, topical6: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical6: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Niacin/ Caffeine 2%/2% Trans PLO 30ml ($150.00)</p>
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical7}
-                      onChange={(e) => setFormData({...formData, topical7: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical7: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Tretinoin 0.05%/30mg/mL (30mL Trans PLO) ($140.00)</p>
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical8}
-                      onChange={(e) => setFormData({...formData, topical8: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical8: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">Minoxidil 10% Lipoderm</p>
                     </div>
                   </label>
 
-                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-lime-400 transition cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="mr-3 mt-1 w-4 h-4 accent-lime-500"
+                  <label className="flex items-start p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-400 transition cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mr-3 mt-1 w-4 h-4 accent-blue-600"
                       checked={formData.topical9}
-                      onChange={(e) => setFormData({...formData, topical9: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, topical9: e.target.checked })}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-900">DERMA CUSTOM (please use DERMA notes to customize)</p>
@@ -410,9 +495,9 @@ export default function DermatologyForm() {
                   <textarea
                     rows="3"
                     placeholder="SUGGEST CUSTOM DERMA SUSPENSION TO BE PATIENTS..."
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition resize-none"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition resize-none"
                     value={formData.dermaNotesOral}
-                    onChange={(e) => setFormData({...formData, dermaNotesOral: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, dermaNotesOral: e.target.value })}
                   />
                 </div>
 
@@ -423,9 +508,9 @@ export default function DermatologyForm() {
                   <textarea
                     rows="3"
                     placeholder="INSTRUCTIONS FOR TOPICAL COMPOUNDS"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition resize-none"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition resize-none"
                     value={formData.dermaNotesTopical}
-                    onChange={(e) => setFormData({...formData, dermaNotesTopical: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, dermaNotesTopical: e.target.value })}
                   />
                 </div>
               </div>
@@ -434,9 +519,9 @@ export default function DermatologyForm() {
                 <label className="block text-sm font-semibold text-black mb-2">NOTES</label>
                 <textarea
                   rows="2"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition resize-none"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition resize-none"
                   value={formData.notes}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
               </div>
             </div>
@@ -444,8 +529,8 @@ export default function DermatologyForm() {
 
           {/* Physician Section */}
           <div className="p-8">
-            <h2 className="text-xl font-bold text-blue-900 mb-6 pb-2 border-b-2 border-blue-400">PHYSICIAN</h2>
-            
+            <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg uppercase tracking-wide">PHYSICIAN</h2>
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-black mb-2">Signature or Initials *</label>
@@ -456,10 +541,10 @@ export default function DermatologyForm() {
                     placeholder="Sign Here"
                     className="w-full h-full px-4 bg-transparent text-center font-cursive text-2xl outline-none"
                     value={formData.signature}
-                    onChange={(e) => setFormData({...formData, signature: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, signature: e.target.value })}
                   />
                 </div>
-                <button type="button" className="text-sm text-blue-600 hover:underline" onClick={() => setFormData({...formData, signature: ''})}>
+                <button type="button" className="text-sm text-blue-600 hover:underline" onClick={() => setFormData({ ...formData, signature: '' })}>
                   Clear
                 </button>
               </div>
@@ -473,7 +558,7 @@ export default function DermatologyForm() {
                     placeholder="ONLY AUTHORIZED PRESCRIBER"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.prescriberName}
-                    onChange={(e) => setFormData({...formData, prescriberName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, prescriberName: e.target.value })}
                   />
                 </div>
                 <div>
@@ -483,7 +568,7 @@ export default function DermatologyForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.prescriptionDate}
-                    onChange={(e) => setFormData({...formData, prescriptionDate: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, prescriptionDate: e.target.value })}
                   />
                 </div>
               </div>
@@ -497,7 +582,7 @@ export default function DermatologyForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                   value={formData.clinicName}
-                  onChange={(e) => setFormData({...formData, clinicName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
                 />
               </div>
 
@@ -508,7 +593,7 @@ export default function DermatologyForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                   value={formData.phoneNumberPhysician}
-                  onChange={(e) => setFormData({...formData, phoneNumberPhysician: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, phoneNumberPhysician: e.target.value })}
                 />
               </div>
 
@@ -520,7 +605,7 @@ export default function DermatologyForm() {
                   placeholder="Street Address"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition mb-3"
                   value={formData.clinicAddress}
-                  onChange={(e) => setFormData({...formData, clinicAddress: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, clinicAddress: e.target.value })}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                   <input
@@ -529,13 +614,13 @@ export default function DermatologyForm() {
                     placeholder="City"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.clinicCity}
-                    onChange={(e) => setFormData({...formData, clinicCity: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, clinicCity: e.target.value })}
                   />
                   <select
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.clinicState}
-                    onChange={(e) => setFormData({...formData, clinicState: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, clinicState: e.target.value })}
                   >
                     <option value="">State</option>
                     {states.map(state => <option key={state} value={state}>{state}</option>)}
@@ -547,7 +632,7 @@ export default function DermatologyForm() {
                   placeholder="Zip Code"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                   value={formData.clinicZip}
-                  onChange={(e) => setFormData({...formData, clinicZip: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, clinicZip: e.target.value })}
                 />
               </div>
 
@@ -559,7 +644,7 @@ export default function DermatologyForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.npi}
-                    onChange={(e) => setFormData({...formData, npi: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, npi: e.target.value })}
                   />
                 </div>
                 <div>
@@ -568,7 +653,7 @@ export default function DermatologyForm() {
                     type="text"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                     value={formData.dea}
-                    onChange={(e) => setFormData({...formData, dea: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, dea: e.target.value })}
                   />
                 </div>
               </div>
@@ -583,21 +668,45 @@ export default function DermatologyForm() {
                   placeholder="example@example.com"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="px-8 pb-8">
+          {/* Price Summary and Add to Cart Button */}
+          <div className="px-4 sm:px-8 pb-8">
+            {totalPrice > 0 && (
+              <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-4 sm:p-6 mb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 mb-2">
+                  <span className="text-base sm:text-lg font-semibold text-gray-900">Selected Medications:</span>
+                  <span className="text-sm text-gray-600">
+                    {[formData.topical1, formData.topical2, formData.topical3, formData.topical4, formData.topical5, formData.topical6, formData.topical7, formData.topical8, formData.topical9].filter(Boolean).length} item(s)
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 pt-4 border-t-2 border-blue-200">
+                  <span className="text-lg sm:text-2xl font-bold text-blue-900">Total Price:</span>
+                  <span className="text-2xl sm:text-3xl font-bold text-blue-600">${totalPrice.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
             <button
-              disabled={submitting}
+              disabled={submitting || totalPrice === 0}
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-60"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3"
             >
-              {submitting ? 'Submitting...' : 'Submit'}
+              <ShoppingCart size={20} className="sm:w-6 sm:h-6" />
+              <span className="text-sm sm:text-base text-center">
+                {submitting ? 'Adding to Cart...' : totalPrice === 0 ? 'Select Medications to Continue' : `Add to Cart - $${totalPrice.toFixed(2)}`}
+              </span>
             </button>
+
+            {totalPrice === 0 && (
+              <p className="text-center text-xs sm:text-sm text-gray-600 mt-3">
+                Please select at least one medication above to continue
+              </p>
+            )}
           </div>
         </form>
 

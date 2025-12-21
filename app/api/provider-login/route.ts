@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // STEP 1: Check if email exists in database
     const { data: provider, error: fetchError } = await supabase
       .from("provider_accounts")
       .select("*")
@@ -33,12 +34,15 @@ export async function POST(req: NextRequest) {
 
     if (fetchError || !provider) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 401 }
+        {
+          error: "No account found with this email. Please sign up first or check your email address.",
+          errorType: "email_not_found"
+        },
+        { status: 404 }
       );
     }
 
-    // Check if provider has a password set
+    // STEP 2: Verify password
     if (!provider.password_hash) {
       return NextResponse.json(
         { error: "Password not set for this account. Please contact support." },
@@ -46,83 +50,133 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify password
     const isValidPassword = await bcrypt.compare(password, provider.password_hash);
 
     if (!isValidPassword) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        {
+          error: "Incorrect password. Please try again.",
+          errorType: "invalid_password"
+        },
         { status: 401 }
       );
     }
 
-    // Check provider status
-    if (provider.status === "rejected") {
-      return NextResponse.json(
-        { error: "Your provider account has been rejected. Please contact support." },
-        { status: 403 }
-      );
-    }
+    // STEP 3: Check signature status in database
+    console.log(`Login attempt for ${email} - Status: ${provider.status}`);
 
-    if (provider.status === "suspended") {
-      return NextResponse.json(
-        { error: "Your provider account has been suspended. Please contact support." },
-        { status: 403 }
-      );
-    }
-
-    // Check for pending_signature, signature_sent, or signature_opened status
-    if (["pending_signature", "signature_sent", "signature_opened"].includes(provider.status)) {
+    // Pending signature - signature request not sent yet, block login
+    if (provider.status === "pending_signature") {
       return NextResponse.json(
         {
           success: false,
-          pending_signature: true,
+          statusType: "pending_signature",
           email: provider.email,
-          signatureUrl: provider.docuseal_signature_url,
-          error: provider.status === "pending_signature"
-            ? "Your document signature is pending. Please check your email for the signature link."
-            : "Your document signature is pending. Please complete the electronic signature form sent to your email.",
+          message: "Email verified. Account setup in progress.",
+          error: "Your account is being set up. Please wait for the signature request email. This usually takes a few minutes.",
         },
         { status: 403 }
       );
     }
 
-    // Check for signature_declined status
+    // Signature declined
     if (provider.status === "signature_declined") {
       return NextResponse.json(
         {
-          error: "You have declined the provider agreement. Please contact support if you wish to reapply.",
+          success: false,
+          statusType: "signature_declined",
+          email: provider.email,
+          message: "Email verified. Signature declined.",
+          error: "You declined the provider agreement. Please contact support at support@medconnect.com if you wish to reapply.",
         },
         { status: 403 }
       );
     }
 
-    // Check for signature_expired status
+    // Signature expired
     if (provider.status === "signature_expired") {
       return NextResponse.json(
         {
-          error: "Your signature request has expired. Please contact support to receive a new signature link.",
+          success: false,
+          statusType: "signature_expired",
+          email: provider.email,
+          message: "Email verified. Signature link expired.",
+          error: "Your signature request has expired. Please contact support at support@medconnect.com to receive a new signature link.",
         },
         { status: 403 }
       );
     }
 
-    // Return success with provider data (excluding sensitive information)
+
+    // Account rejected by admin
+    if (provider.status === "rejected") {
+      return NextResponse.json(
+        {
+          success: false,
+          statusType: "rejected",
+          email: provider.email,
+          message: "Email verified. Account rejected.",
+          error: "Your provider account application has been rejected. Please contact support at support@medconnect.com for more information.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Account suspended
+    if (provider.status === "suspended") {
+      return NextResponse.json(
+        {
+          success: false,
+          statusType: "suspended",
+          email: provider.email,
+          message: "Email verified. Account suspended.",
+          error: "Your provider account has been suspended. Please contact support at support@medconnect.com for assistance.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // STEP 4: Allow login for valid statuses (signature_sent and beyond)
+    const allowedStatuses = [
+      "signature_sent",      // ✅ Email sent - can login
+      "signature_opened",    // ✅ User opened form - can login
+      "signature_received",  // ✅ Signature completed - can login
+      "approved",           // ✅ Admin approved - can login
+      "active"              // ✅ Account active - can login
+    ];
+
+    if (allowedStatuses.includes(provider.status)) {
+      console.log(`✅ Successful login for ${email} - Status: ${provider.status}`);
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Login successful",
+          provider: {
+            id: provider.id,
+            email: provider.email,
+            firstName: provider.first_name,
+            lastName: provider.last_name,
+            companyName: provider.company_name,
+            status: provider.status,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    // Unknown status
     return NextResponse.json(
       {
-        success: true,
-        message: "Login successful",
-        provider: {
-          id: provider.id,
-          email: provider.email,
-          firstName: provider.first_name,
-          lastName: provider.last_name,
-          companyName: provider.company_name,
-          status: provider.status,
-        },
+        success: false,
+        statusType: "unknown",
+        email: provider.email,
+        message: "Email verified. Unknown account status.",
+        error: `Account status: ${provider.status}. Please contact support at support@medconnect.com for assistance.`,
       },
-      { status: 200 }
+      { status: 403 }
     );
+
   } catch (error: any) {
     console.error("Error in provider login:", error);
     return NextResponse.json(

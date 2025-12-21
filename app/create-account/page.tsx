@@ -1,16 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import supabase from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../../components/navbar";
 import Footer from "../../components/footer";
+import { CheckCircle } from "lucide-react";
 
 export default function CreateAccountPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSignatureSuccess, setShowSignatureSuccess] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Check if redirected from DocuSeal signature completion
+    const signatureCompleted = searchParams.get("signature");
+    if (signatureCompleted === "completed") {
+      setShowSignatureSuccess(true);
+      // Auto-hide after 10 seconds
+      setTimeout(() => setShowSignatureSuccess(false), 10000);
+    }
+  }, [searchParams]);
 
   const handleLogin = async () => {
     setError(null);
@@ -26,44 +39,76 @@ export default function CreateAccountPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (providerResponse.ok) {
-        const providerData = await providerResponse.json();
-        // Store provider info in localStorage
-        localStorage.setItem("provider", JSON.stringify(providerData.provider));
+      const responseData = await providerResponse.json();
+
+      console.log("Provider login response:", {
+        status: providerResponse.status,
+        ok: providerResponse.ok,
+        success: responseData.success,
+        statusType: responseData.statusType,
+        providerStatus: responseData.provider?.status
+      });
+
+      // SUCCESS - Login approved
+      if (providerResponse.ok && responseData.success) {
+        console.log("✅ Login successful! Redirecting to home page...");
+        localStorage.setItem("provider", JSON.stringify(responseData.provider));
         setLoading(false);
-        router.push("/");
+
+        // Force redirect to home page
+        window.location.href = "/";
         return;
       }
 
-      // Check for pending_signature status (403 with pending_signature flag)
-      if (providerResponse.status === 403) {
-        const errorData = await providerResponse.json();
-        if (errorData.pending_signature) {
-          setLoading(false);
-          const signatureUrlParam = errorData.signatureUrl
-            ? `&signatureUrl=${encodeURIComponent(errorData.signatureUrl)}`
-            : '';
-          router.push(`/provider-pending-signature?email=${encodeURIComponent(errorData.email)}${signatureUrlParam}`);
+      // EMAIL NOT FOUND (404)
+      if (providerResponse.status === 404) {
+        setLoading(false);
+        setError(responseData.error || "No account found with this email.");
+        return;
+      }
+
+      // INVALID PASSWORD (401)
+      if (providerResponse.status === 401) {
+        // Try regular user login as fallback
+        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        setLoading(false);
+        if (authError) {
+          setError(responseData.error || "Incorrect password. Please try again.");
           return;
         }
-        setError(errorData.error);
-        setLoading(false);
-        return;
-      }
-
-      // If provider login fails with 401 (invalid credentials), try regular user login
-      if (providerResponse.status === 401) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        setLoading(false);
-        if (error) return setError(error.message);
         router.push("/");
         return;
       }
 
-      // If provider login fails with other error, show the error
-      const providerError = await providerResponse.json();
+      // SIGNATURE/STATUS ISSUES (403)
+      if (providerResponse.status === 403) {
+        setLoading(false);
+
+        // Only redirect to pending signature page for "pending_signature" status
+        if (responseData.statusType === "pending_signature") {
+          console.log("⏳ Account setup in progress. Redirecting to pending signature page...");
+          const signatureUrlParam = responseData.signatureUrl
+            ? `&signatureUrl=${encodeURIComponent(responseData.signatureUrl)}`
+            : '';
+          router.push(`/provider-pending-signature?email=${encodeURIComponent(responseData.email)}${signatureUrlParam}`);
+          return;
+        }
+
+        console.log("❌ Status issue:", responseData.statusType);
+
+        // For other status issues, show error message
+        const statusMessage = responseData.message
+          ? `${responseData.message}\n\n${responseData.error}`
+          : responseData.error;
+
+        setError(statusMessage);
+        return;
+      }
+
+      // OTHER ERRORS
       setLoading(false);
-      setError(providerError.error || "Login failed");
+      setError(responseData.error || "Login failed. Please try again.");
+
     } catch (error: any) {
       setLoading(false);
       setError(error.message || "An error occurred during login");
@@ -87,7 +132,30 @@ export default function CreateAccountPage() {
     <main>
       <Navbar />
       <div className="min-h-[80vh] bg-gradient-to-b from-white to-blue-50 flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="w-full max-w-4xl">
+          {/* Signature Completion Success Banner */}
+          {showSignatureSuccess && (
+            <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-sm animate-fade-in">
+              <div className="flex items-start">
+                <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-green-800">Signature Completed Successfully!</h3>
+                  <p className="text-sm text-green-700 mt-1">
+                    Your provider agreement has been signed. Your application is now being reviewed by our team.
+                    You can log in once your account is approved. We'll notify you via email when your account is ready.
+                  </p>
+                  <button
+                    onClick={() => setShowSignatureSuccess(false)}
+                    className="text-sm text-green-600 hover:text-green-800 font-semibold mt-2 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="hidden md:flex items-center justify-center rounded-2xl bg-white shadow-sm p-8">
             <div className="text-center">
               <img src="/medconnect logo.webp" alt="MedConnect" className="w-48 h-auto mx-auto mb-4" />
@@ -175,14 +243,26 @@ export default function CreateAccountPage() {
                 <label className="block text-sm font-semibold text-black mb-1">Password</label>
                 <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" required />
               </div>
-              {error && <p className="text-red-600 text-sm">{error}</p>}
-              <button disabled={loading} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">{loading ? "Logging in..." : "Log in"}</button>
+              {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                  <div className="flex items-start">
+                    <svg className="h-5 w-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm text-red-800 whitespace-pre-line">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button disabled={loading} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">{loading ? "Logging in..." : "Log in"}</button>
               <p className="text-sm text-gray-600 text-center">
                 New provider? {" "}
                 <button type="button" className="text-blue-600 font-semibold hover:underline" onClick={() => router.push("/provider-signup")}>Create Provider's Account</button>
               </p>
             </form>
           </div>
+        </div>
         </div>
       </div>
       <Footer />

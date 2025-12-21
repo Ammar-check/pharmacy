@@ -5,7 +5,7 @@
 
 const DOCUSEAL_API_URL = process.env.DOCUSEAL_API_URL || "https://api.docuseal.com";
 const DOCUSEAL_API_KEY = process.env.DOCUSEAL_API_KEY;
-const DOCUSEAL_TEMPLATE_SLUG = process.env.DOCUSEAL_TEMPLATE_SLUG;
+const DOCUSEAL_TEMPLATE_ID = process.env.DOCUSEAL_TEMPLATE_ID;
 const DOCUSEAL_WEBHOOK_SECRET = process.env.DOCUSEAL_WEBHOOK_SECRET;
 
 export interface DocuSealSubmitter {
@@ -20,8 +20,7 @@ export interface DocuSealSubmitter {
 }
 
 export interface DocuSealSubmission {
-    template_id?: string;
-    template_slug?: string;
+    template_id?: string | number;
     send_email?: boolean;
     order?: "preserved" | "random";
     completed_redirect_url?: string;
@@ -82,42 +81,59 @@ export async function createProviderSignatureSubmission(providerData: {
             throw new Error("DOCUSEAL_API_KEY not configured");
         }
 
-        if (!DOCUSEAL_TEMPLATE_SLUG) {
-            throw new Error("DOCUSEAL_TEMPLATE_SLUG not configured");
+        if (!DOCUSEAL_TEMPLATE_ID) {
+            throw new Error("DOCUSEAL_TEMPLATE_ID not configured");
         }
 
+        // Validate required provider data
+        if (!providerData.email || !providerData.firstName || !providerData.lastName) {
+            throw new Error("Missing required provider data: email, firstName, or lastName");
+        }
+
+        // Format phone number to international format (+1 for US)
+        const cleanPhone = providerData.phone.replace(/\D/g, ''); // Remove all non-digits
+
+        // Validate phone has at least 10 digits
+        if (cleanPhone.length < 10) {
+            throw new Error(`Invalid phone number: ${providerData.phone}. Must have at least 10 digits.`);
+        }
+
+        const formattedPhone = cleanPhone.startsWith('1') ? `+${cleanPhone}` : `+1${cleanPhone}`;
+
         const submissionPayload: DocuSealSubmission = {
-            template_slug: DOCUSEAL_TEMPLATE_SLUG,
+            template_id: parseInt(DOCUSEAL_TEMPLATE_ID, 10),
             send_email: true,
             order: "preserved",
-            completed_redirect_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/provider-signature-complete`,
+            completed_redirect_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/create-account?signature=completed`,
             submitters: [
                 {
                     email: providerData.email,
                     name: `${providerData.firstName} ${providerData.lastName}`,
-                    role: "Provider",
-                    phone: providerData.phone,
+                    role: "User",
+                    phone: formattedPhone,
                     send_email: true,
-                    values: {
-                        // Pre-fill form fields in the PDF template
-                        "Provider Name": `${providerData.firstName} ${providerData.lastName}`,
-                        "Company Name": providerData.companyName,
-                        "Email": providerData.email,
-                        "Phone": providerData.phone,
-                        "NPI Number": providerData.npiNumber,
-                        "Tax ID/EIN": providerData.taxIdEin,
-                        "Address": providerData.addressLine1,
-                        "City": providerData.city,
-                        "State": providerData.state,
-                        "ZIP Code": providerData.zipCode,
-                    },
                     metadata: {
                         provider_signup: true,
+                        first_name: providerData.firstName,
+                        last_name: providerData.lastName,
                         company_name: providerData.companyName,
+                        npi_number: providerData.npiNumber,
+                        tax_id_ein: providerData.taxIdEin,
+                        address: providerData.addressLine1,
+                        city: providerData.city,
+                        state: providerData.state,
+                        zip_code: providerData.zipCode,
                     },
                 },
             ],
         };
+
+        console.log("Creating DocuSeal submission with payload:", {
+            template_id: DOCUSEAL_TEMPLATE_ID,
+            email: providerData.email,
+            name: `${providerData.firstName} ${providerData.lastName}`,
+            phone: formattedPhone,
+        });
 
         const response = await fetch(`${DOCUSEAL_API_URL}/submissions`, {
             method: "POST",
@@ -134,27 +150,37 @@ export async function createProviderSignatureSubmission(providerData: {
                 status: response.status,
                 statusText: response.statusText,
                 error: errorData,
+                requestPayload: {
+                    template_id: DOCUSEAL_TEMPLATE_ID,
+                    email: providerData.email,
+                },
             });
             throw new Error(`DocuSeal API error: ${response.status} - ${JSON.stringify(errorData)}`);
         }
 
         const result = await response.json();
 
-        // Extract submitter information
-        const submitter = result.submitters?.[0];
+        // DocuSeal returns an array of submitters directly
+        const submitters = Array.isArray(result) ? result : [result];
+        const submitter = submitters[0];
+
         if (!submitter) {
+            console.error("No submitter in DocuSeal response:", result);
             throw new Error("No submitter returned from DocuSeal");
         }
 
-        // Construct signature URL
-        const signatureUrl = `https://docuseal.com/s/${submitter.slug}`;
+        console.log("DocuSeal submission created successfully:", {
+            submissionId: submitter.submission_id,
+            submitterSlug: submitter.slug,
+            signatureUrl: submitter.embed_src,
+        });
 
         return {
             success: true,
-            submissionId: result.id,
+            submissionId: submitter.submission_id,
             submitterUuid: submitter.uuid,
             submitterSlug: submitter.slug,
-            signatureUrl,
+            signatureUrl: submitter.embed_src || `https://docuseal.com/s/${submitter.slug}`,
         };
     } catch (error: any) {
         console.error("Error creating DocuSeal submission:", error);

@@ -51,13 +51,13 @@ export default function WeightLossForm() {
   });
 
   const states = [
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 
-    'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 
-    'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 
-    'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 
-    'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 
-    'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 
-    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 
+    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+    'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois',
+    'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts',
+    'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+    'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
+    'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
+    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
     'West Virginia', 'Wisconsin', 'Wyoming'
   ];
 
@@ -201,9 +201,8 @@ export default function WeightLossForm() {
         return (
           <label
             key={item.value}
-            className={`flex items-start gap-3 p-3 rounded-xl border transition shadow-sm ${
-              selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-            }`}
+            className={`flex items-start gap-3 p-3 rounded-xl border transition shadow-sm ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+              }`}
           >
             <input
               type="checkbox"
@@ -341,16 +340,16 @@ export default function WeightLossForm() {
         <div className="relative bg-blue-600 text-white p-6 rounded-t-lg shadow-lg">
           <div className="relative flex items-center gap-4">
             <img src="/medconnect logo.webp" alt="MedConnect" className="h-16 w-auto" />
-            <div>
-              <h1 className="text-2xl font-bold mb-1">SEMAGLUTIDE/TIRZEPATIDE PAD</h1>
-              <p className="text-sm opacity-90">123 Medical Plaza Drive, Suite 200, Springfield, IL 62701</p>
-              <p className="text-sm opacity-90">Ph: (555) 123-4567 | Fax: (555) 765-4321</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl md:text-2xl font-bold mb-1 break-words">SEMAGLUTIDE/TIRZEPATIDE PAD</h1>
+              <p className="text-sm opacity-90 hidden md:block">123 Medical Plaza Drive, Suite 200, Springfield, IL 62701</p>
+              <p className="text-sm opacity-90 hidden md:block">Ph: (555) 123-4567 | Fax: (555) 765-4321</p>
             </div>
           </div>
         </div>
 
         {/* Alert */}
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 flex items-start gap-3">
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 hidden md:flex items-start gap-3">
           <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
           <div className="text-sm text-black">
             <p className="font-semibold mb-1">All fields marked with * are required and must be filled.</p>
@@ -363,7 +362,7 @@ export default function WeightLossForm() {
           {/* Patient Section */}
           <div className="p-8 border-b-2 border-gray-100">
             <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg">PATIENT INFORMATION</h2>
-            
+
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -373,7 +372,7 @@ export default function WeightLossForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   />
                 </div>
                 <div>
@@ -383,7 +382,7 @@ export default function WeightLossForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   />
                 </div>
               </div>
@@ -399,7 +398,7 @@ export default function WeightLossForm() {
                     max="12"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.dobMonth}
-                    onChange={(e) => setFormData({...formData, dobMonth: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, dobMonth: e.target.value })}
                   />
                   <input
                     type="number"
@@ -409,7 +408,7 @@ export default function WeightLossForm() {
                     max="31"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.dobDay}
-                    onChange={(e) => setFormData({...formData, dobDay: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, dobDay: e.target.value })}
                   />
                   <input
                     type="number"
@@ -419,7 +418,7 @@ export default function WeightLossForm() {
                     max="2025"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.dobYear}
-                    onChange={(e) => setFormData({...formData, dobYear: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, dobYear: e.target.value })}
                   />
                 </div>
               </div>
@@ -432,7 +431,7 @@ export default function WeightLossForm() {
                   placeholder="(555) 555-5555"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
 
@@ -443,7 +442,7 @@ export default function WeightLossForm() {
                   rows="3"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition resize-none"
                   value={formData.allergies}
-                  onChange={(e) => setFormData({...formData, allergies: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
                 />
               </div>
 
@@ -457,7 +456,7 @@ export default function WeightLossForm() {
                   placeholder="123 MAIN STREET"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition mb-3"
                   value={formData.street}
-                  onChange={(e) => setFormData({...formData, street: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <input
@@ -466,13 +465,13 @@ export default function WeightLossForm() {
                     placeholder="City"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.city}
-                    onChange={(e) => setFormData({...formData, city: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   />
                   <select
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.state}
-                    onChange={(e) => setFormData({...formData, state: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                   >
                     <option value="">Select State</option>
                     {states.map(state => <option key={state} value={state}>{state}</option>)}
@@ -483,7 +482,7 @@ export default function WeightLossForm() {
                     placeholder="Zip Code"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.zip}
-                    onChange={(e) => setFormData({...formData, zip: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
                   />
                 </div>
               </div>
@@ -495,7 +494,7 @@ export default function WeightLossForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.billTo}
-                    onChange={(e) => setFormData({...formData, billTo: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, billTo: e.target.value })}
                   >
                     <option value="">Select Option</option>
                     <option value="patient">Patient</option>
@@ -509,7 +508,7 @@ export default function WeightLossForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.deliverTo}
-                    onChange={(e) => setFormData({...formData, deliverTo: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, deliverTo: e.target.value })}
                   >
                     <option value="">Select Option</option>
                     <option value="patient">Patient Address</option>
@@ -523,7 +522,7 @@ export default function WeightLossForm() {
           {/* Prescription Section */}
           <div className="p-8 border-b-2 border-gray-100">
             <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg">PRESCRIPTION</h2>
-            
+
             <div className="space-y-8">
               <div className="rounded-2xl border-2 border-blue-100 shadow-sm overflow-hidden">
                 <div className="bg-blue-50 border-b border-blue-100 px-6 py-4 text-center">
@@ -594,7 +593,7 @@ export default function WeightLossForm() {
                   rows={4}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition resize-none"
                   value={formData.medicalNecessity}
-                  onChange={(e) => setFormData({...formData, medicalNecessity: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, medicalNecessity: e.target.value })}
                 />
               </div>
 
@@ -606,7 +605,7 @@ export default function WeightLossForm() {
                   rows={4}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition resize-none"
                   value={formData.customNotes}
-                  onChange={(e) => setFormData({...formData, customNotes: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, customNotes: e.target.value })}
                 />
               </div>
 
@@ -622,7 +621,7 @@ export default function WeightLossForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                   value={formData.refills}
-                  onChange={(e) => setFormData({...formData, refills: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, refills: e.target.value })}
                 />
               </div>
             </div>
@@ -631,7 +630,7 @@ export default function WeightLossForm() {
           {/* Physician Section */}
           <div className="p-8">
             <h2 className="text-xl font-bold text-white bg-blue-600 mb-6 px-4 py-3 rounded-lg">PHYSICIAN INFORMATION</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-black mb-2">Signature or Initials *</label>
@@ -640,7 +639,7 @@ export default function WeightLossForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition font-cursive text-lg"
                   value={formData.signature}
-                  onChange={(e) => setFormData({...formData, signature: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, signature: e.target.value })}
                 />
               </div>
 
@@ -653,7 +652,7 @@ export default function WeightLossForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                   value={formData.prescriberName}
-                  onChange={(e) => setFormData({...formData, prescriberName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, prescriberName: e.target.value })}
                 />
               </div>
 
@@ -664,7 +663,7 @@ export default function WeightLossForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                   value={formData.prescriptionDate}
-                  onChange={(e) => setFormData({...formData, prescriptionDate: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, prescriptionDate: e.target.value })}
                 />
               </div>
 
@@ -677,7 +676,7 @@ export default function WeightLossForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                   value={formData.clinicName}
-                  onChange={(e) => setFormData({...formData, clinicName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
                 />
               </div>
 
@@ -689,7 +688,7 @@ export default function WeightLossForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicPhone}
-                    onChange={(e) => setFormData({...formData, clinicPhone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, clinicPhone: e.target.value })}
                   />
                 </div>
                 <div>
@@ -699,7 +698,7 @@ export default function WeightLossForm() {
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.npi}
-                    onChange={(e) => setFormData({...formData, npi: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, npi: e.target.value })}
                   />
                 </div>
               </div>
@@ -710,7 +709,7 @@ export default function WeightLossForm() {
                   type="text"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                   value={formData.dea}
-                  onChange={(e) => setFormData({...formData, dea: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, dea: e.target.value })}
                 />
               </div>
 
@@ -722,7 +721,7 @@ export default function WeightLossForm() {
                   placeholder="Street Address"
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition mb-3"
                   value={formData.clinicStreet}
-                  onChange={(e) => setFormData({...formData, clinicStreet: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, clinicStreet: e.target.value })}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <input
@@ -731,13 +730,13 @@ export default function WeightLossForm() {
                     placeholder="City"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicCity}
-                    onChange={(e) => setFormData({...formData, clinicCity: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, clinicCity: e.target.value })}
                   />
                   <select
                     required
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicState}
-                    onChange={(e) => setFormData({...formData, clinicState: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, clinicState: e.target.value })}
                   >
                     <option value="">Select State</option>
                     {states.map(state => <option key={state} value={state}>{state}</option>)}
@@ -748,7 +747,7 @@ export default function WeightLossForm() {
                     placeholder="Zip Code"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                     value={formData.clinicZip}
-                    onChange={(e) => setFormData({...formData, clinicZip: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, clinicZip: e.target.value })}
                   />
                 </div>
               </div>
@@ -760,7 +759,7 @@ export default function WeightLossForm() {
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-lime-400 focus:ring-2 focus:ring-lime-200 outline-none transition text-gray-900 placeholder:text-gray-700"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
             </div>

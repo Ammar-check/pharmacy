@@ -7,10 +7,12 @@ import { User, LogOut } from "lucide-react";
 type SessionState = {
   email: string | null;
   isAdmin: boolean;
+  isProvider: boolean;
+  providerName?: string;
 };
 
 export default function AuthMenu() {
-  const [state, setState] = useState<SessionState>({ email: null, isAdmin: false });
+  const [state, setState] = useState<SessionState>({ email: null, isAdmin: false, isProvider: false });
   const [loading, setLoading] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -18,11 +20,32 @@ export default function AuthMenu() {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      // Check for provider session in localStorage first
+      const providerData = localStorage.getItem("provider");
+      if (providerData) {
+        try {
+          const provider = JSON.parse(providerData);
+          if (!mounted) return;
+          setState({
+            email: provider.email,
+            isAdmin: false,
+            isProvider: true,
+            providerName: `${provider.firstName} ${provider.lastName}`,
+          });
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error("Invalid provider data in localStorage", e);
+          localStorage.removeItem("provider");
+        }
+      }
+
+      // Fall back to Supabase auth
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user || null;
       if (!mounted) return;
       if (!user) {
-        setState({ email: null, isAdmin: false });
+        setState({ email: null, isAdmin: false, isProvider: false });
         setLoading(false);
         return;
       }
@@ -31,7 +54,11 @@ export default function AuthMenu() {
         .select("role, email")
         .eq("id", user.id)
         .single();
-      setState({ email: user.email ?? profile?.email ?? null, isAdmin: profile?.role === "admin" });
+      setState({
+        email: user.email ?? profile?.email ?? null,
+        isAdmin: profile?.role === "admin",
+        isProvider: false,
+      });
       setLoading(false);
     })();
     return () => {
@@ -57,8 +84,13 @@ export default function AuthMenu() {
   }, [dropdownOpen]);
 
   const signOut = async () => {
+    // Clear provider session if exists
+    localStorage.removeItem("provider");
+
+    // Clear Supabase auth session
     await fetch("/api/auth/signout", { method: "POST" });
     await supabase.auth.signOut();
+
     window.location.href = "/";
   };
 
@@ -72,8 +104,15 @@ export default function AuthMenu() {
     );
   }
 
-  // Generate initials from email
-  const getInitials = (email: string) => {
+  // Generate initials from email or name
+  const getInitials = (email: string, name?: string) => {
+    if (name) {
+      const nameParts = name.trim().split(' ');
+      if (nameParts.length >= 2) {
+        return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+      }
+      return name.substring(0, 2).toUpperCase();
+    }
     const parts = email.split('@')[0].split('.');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -105,7 +144,7 @@ export default function AuthMenu() {
         className="flex items-center gap-2 hover:opacity-80 transition"
       >
         <div className={`w-10 h-10 rounded-full ${getColorFromEmail(state.email || '')} flex items-center justify-center text-white font-bold shadow-lg hover:shadow-xl transition-shadow`}>
-          {getInitials(state.email || '')}
+          {getInitials(state.email || '', state.providerName)}
         </div>
       </button>
 
@@ -116,11 +155,16 @@ export default function AuthMenu() {
           <div className="px-4 py-3 border-b border-gray-100">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-full ${getColorFromEmail(state.email || '')} flex items-center justify-center text-white font-bold`}>
-                {getInitials(state.email || '')}
+                {getInitials(state.email || '', state.providerName)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 font-medium">Signed in as</p>
-                <p className="text-sm font-semibold text-gray-900 truncate">{state.email}</p>
+                <p className="text-xs text-gray-500 font-medium">
+                  {state.isProvider ? 'Provider Account' : 'Signed in as'}
+                </p>
+                {state.providerName && (
+                  <p className="text-sm font-semibold text-gray-900 truncate">{state.providerName}</p>
+                )}
+                <p className="text-xs text-gray-600 truncate">{state.email}</p>
               </div>
             </div>
           </div>
