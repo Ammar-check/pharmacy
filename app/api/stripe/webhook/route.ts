@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe";
 import { createSupabaseServiceRole } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
+import type Stripe from "stripe";
 
 // Helper function to log with timestamp
 function log(message: string, data?: any) {
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   log(`=== Webhook Request Started ===`, { requestId });
 
-  let event;
+  let event: Stripe.Event;
   let body: string;
 
   try {
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
 }
 
 // Async function to process webhook events
-async function processWebhookEvent(event: any, requestId: string) {
+async function processWebhookEvent(event: Stripe.Event, requestId: string) {
   log("Processing event asynchronously", {
     eventType: event.type,
     eventId: event.id,
@@ -140,17 +141,17 @@ async function processWebhookEvent(event: any, requestId: string) {
   try {
     switch (event.type) {
       case "payment_intent.succeeded":
-        const paymentIntent = event.data.object;
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
         await handlePaymentIntentSucceeded(paymentIntent, requestId);
         break;
 
       case "payment_intent.payment_failed":
-        const failedPayment = event.data.object;
+        const failedPayment = event.data.object as Stripe.PaymentIntent;
         await handlePaymentFailed(failedPayment, requestId);
         break;
 
       case "payment_intent.canceled":
-        const canceledPayment = event.data.object;
+        const canceledPayment = event.data.object as Stripe.PaymentIntent;
         log("PaymentIntent canceled", {
           paymentIntentId: canceledPayment.id,
           requestId
@@ -183,7 +184,7 @@ async function processWebhookEvent(event: any, requestId: string) {
   }
 }
 
-async function handlePaymentIntentSucceeded(paymentIntent: any, requestId: string) {
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent, requestId: string) {
   log("=== Payment Intent Succeeded Handler Started ===", {
     paymentIntentId: paymentIntent.id,
     amount: paymentIntent.amount,
@@ -629,7 +630,7 @@ async function sendOrderConfirmationEmail(
   }
 }
 
-async function handlePaymentFailed(paymentIntent: any, requestId: string) {
+async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent, requestId: string) {
   log("=== Payment Failed Handler Started ===", {
     paymentIntentId: paymentIntent.id,
     requestId
