@@ -6,72 +6,195 @@ import { stripe } from "@/lib/stripe";
 import { createSupabaseServiceRole } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 
-export async function POST(req: Request) {
-  const body = await req.text();
-  const headersList = await headers();
-  const signature = headersList.get("stripe-signature");
-
-  if (!signature) {
-    return NextResponse.json(
-      { error: "No signature found" },
-      { status: 400 }
-    );
+// Helper function to log with timestamp
+function log(message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  if (data) {
+    console.log(`[${timestamp}] [STRIPE-WEBHOOK] ${message}`, JSON.stringify(data, null, 2));
+  } else {
+    console.log(`[${timestamp}] [STRIPE-WEBHOOK] ${message}`);
   }
-
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error("STRIPE_WEBHOOK_SECRET is not set");
-    return NextResponse.json(
-      { error: "Webhook secret not configured" },
-      { status: 500 }
-    );
-  }
-
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err: any) {
-    console.error("Webhook signature verification failed:", err.message);
-    return NextResponse.json(
-      { error: `Webhook Error: ${err.message}` },
-      { status: 400 }
-    );
-  }
-
-  // Handle the event
-  switch (event.type) {
-    case "payment_intent.succeeded":
-      const paymentIntent = event.data.object;
-      await handlePaymentIntentSucceeded(paymentIntent);
-      break;
-
-    case "payment_intent.payment_failed":
-      const failedPayment = event.data.object;
-      await handlePaymentFailed(failedPayment);
-      break;
-
-    case "payment_intent.canceled":
-      const canceledPayment = event.data.object;
-      console.log("PaymentIntent canceled:", canceledPayment.id);
-      break;
-
-    default:
-      console.log(`Unhandled event type: ${event.type}`);
-  }
-
-  return NextResponse.json({ received: true });
 }
 
-async function handlePaymentIntentSucceeded(paymentIntent: any) {
+function logError(message: string, error?: any) {
+  const timestamp = new Date().toISOString();
+  console.error(`[${timestamp}] [STRIPE-WEBHOOK-ERROR] ${message}`, error);
+}
+
+export async function POST(req: Request) {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  log(`=== Webhook Request Started ===`, { requestId });
+
+  let event;
+  let body: string;
+
+  try {
+    // Step 1: Get request body
+    try {
+      body = await req.text();
+      log("Request body received", { bodyLength: body.length, requestId });
+    } catch (err: any) {
+      logError("Failed to read request body", err);
+      return NextResponse.json(
+        { error: "Failed to read request body" },
+        { status: 400 }
+      );
+    }
+
+    // Step 2: Verify webhook signature
+    const headersList = await headers();
+    const signature = headersList.get("stripe-signature");
+
+    if (!signature) {
+      logError("No Stripe signature found in headers", { requestId });
+      return NextResponse.json(
+        { error: "No signature found" },
+        { status: 400 }
+      );
+    }
+
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      logError("STRIPE_WEBHOOK_SECRET is not configured", { requestId });
+      return NextResponse.json(
+        { error: "Webhook secret not configured" },
+        { status: 500 }
+      );
+    }
+
+    // Step 3: Construct and verify event
+    try {
+      event = stripe.webhooks.constructEvent(
+        body,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+      log("Event verified successfully", {
+        eventType: event.type,
+        eventId: event.id,
+        requestId
+      });
+    } catch (err: any) {
+      logError("Webhook signature verification failed", {
+        error: err.message,
+        requestId
+      });
+      return NextResponse.json(
+        { error: `Webhook Error: ${err.message}` },
+        { status: 400 }
+      );
+    }
+
+    // Step 4: Process event asynchronously and return 200 immediately
+    // This is CRITICAL: Stripe needs a quick 200 response
+    processWebhookEvent(event, requestId).catch((err) => {
+      logError("Async event processing failed", {
+        error: err.message,
+        stack: err.stack,
+        eventType: event.type,
+        eventId: event.id,
+        requestId
+      });
+    });
+
+    log("Webhook acknowledged successfully", {
+      eventType: event.type,
+      eventId: event.id,
+      requestId
+    });
+
+    // Return 200 immediately - CRITICAL for Stripe
+    return NextResponse.json({
+      received: true,
+      eventId: event.id,
+      requestId
+    }, { status: 200 });
+
+  } catch (err: any) {
+    logError("Unexpected error in webhook handler", {
+      error: err.message,
+      stack: err.stack,
+      requestId
+    });
+
+    // Even on error, try to return 200 to prevent Stripe from retrying
+    // The error is logged for investigation
+    return NextResponse.json(
+      {
+        received: true,
+        error: "Internal processing error - logged for review",
+        requestId
+      },
+      { status: 200 }
+    );
+  }
+}
+
+// Async function to process webhook events
+async function processWebhookEvent(event: any, requestId: string) {
+  log("Processing event asynchronously", {
+    eventType: event.type,
+    eventId: event.id,
+    requestId
+  });
+
+  try {
+    switch (event.type) {
+      case "payment_intent.succeeded":
+        const paymentIntent = event.data.object;
+        await handlePaymentIntentSucceeded(paymentIntent, requestId);
+        break;
+
+      case "payment_intent.payment_failed":
+        const failedPayment = event.data.object;
+        await handlePaymentFailed(failedPayment, requestId);
+        break;
+
+      case "payment_intent.canceled":
+        const canceledPayment = event.data.object;
+        log("PaymentIntent canceled", {
+          paymentIntentId: canceledPayment.id,
+          requestId
+        });
+        break;
+
+      case "checkout.session.completed":
+        log("Checkout session completed", {
+          sessionId: event.data.object.id,
+          requestId
+        });
+        // Handle checkout session if needed
+        break;
+
+      default:
+        log(`Unhandled event type: ${event.type}`, {
+          eventId: event.id,
+          requestId
+        });
+    }
+  } catch (err: any) {
+    logError("Error processing event", {
+      error: err.message,
+      stack: err.stack,
+      eventType: event.type,
+      eventId: event.id,
+      requestId
+    });
+    throw err; // Re-throw to be caught by the outer catch
+  }
+}
+
+async function handlePaymentIntentSucceeded(paymentIntent: any, requestId: string) {
+  log("=== Payment Intent Succeeded Handler Started ===", {
+    paymentIntentId: paymentIntent.id,
+    amount: paymentIntent.amount,
+    requestId
+  });
+
   const supabase = createSupabaseServiceRole();
 
   if (!supabase) {
-    console.error("Service role client not available");
-    return;
+    logError("Service role client not available", { requestId });
+    throw new Error("Service role client not available");
   }
 
   try {
@@ -79,14 +202,30 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
     const userId = metadata.user_id;
 
     if (!userId) {
-      console.error("No user_id in payment intent metadata");
-      return;
+      logError("No user_id in payment intent metadata", {
+        paymentIntentId: paymentIntent.id,
+        metadata,
+        requestId
+      });
+      throw new Error("No user_id in payment intent metadata");
     }
 
-    // Parse shipping address from metadata
-    const shippingAddress = JSON.parse(metadata.shipping_address || "{}");
+    log("Processing payment for user", { userId, requestId });
 
-    // Get cart items for order items creation
+    // Parse shipping address from metadata
+    let shippingAddress;
+    try {
+      shippingAddress = JSON.parse(metadata.shipping_address || "{}");
+    } catch (err) {
+      logError("Failed to parse shipping address", {
+        shippingAddressRaw: metadata.shipping_address,
+        requestId
+      });
+      shippingAddress = {};
+    }
+
+    // Step 1: Get cart items
+    log("Fetching cart items", { userId, requestId });
     const { data: cartItems, error: cartError } = await supabase
       .from("cart_items")
       .select(
@@ -98,18 +237,34 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
         products (
           name,
           sku,
-          primary_image_url
+          primary_image_url,
+          stock_quantity
         )
       `
       )
       .eq("user_id", userId);
 
-    if (cartError || !cartItems || cartItems.length === 0) {
-      console.error("Error fetching cart items:", cartError);
-      return;
+    if (cartError) {
+      logError("Error fetching cart items", {
+        error: cartError,
+        userId,
+        requestId
+      });
+      throw new Error(`Failed to fetch cart items: ${cartError.message}`);
     }
 
-    // Create the order (order_number will be auto-generated by database trigger)
+    if (!cartItems || cartItems.length === 0) {
+      logError("Cart is empty", { userId, requestId });
+      throw new Error("Cart is empty - cannot process order");
+    }
+
+    log("Cart items fetched successfully", {
+      itemCount: cartItems.length,
+      requestId
+    });
+
+    // Step 2: Create the order
+    log("Creating order", { userId, requestId });
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -136,12 +291,28 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
       .select()
       .single();
 
-    if (orderError || !order) {
-      console.error("Error creating order:", orderError);
-      return;
+    if (orderError) {
+      logError("Error creating order", {
+        error: orderError,
+        userId,
+        requestId
+      });
+      throw new Error(`Failed to create order: ${orderError.message}`);
     }
 
-    // Create order items
+    if (!order) {
+      logError("Order creation returned null", { userId, requestId });
+      throw new Error("Order creation failed - no order returned");
+    }
+
+    log("Order created successfully", {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      requestId
+    });
+
+    // Step 3: Create order items
+    log("Creating order items", { orderId: order.id, requestId });
     const orderItems = cartItems.map((item: any) => ({
       order_id: order.id,
       product_id: item.product_id,
@@ -158,51 +329,152 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
       .insert(orderItems);
 
     if (orderItemsError) {
-      console.error("Error creating order items:", orderItemsError);
-      return;
+      logError("Error creating order items", {
+        error: orderItemsError,
+        orderId: order.id,
+        requestId
+      });
+      // Don't throw - order is already created, continue with partial success
+    } else {
+      log("Order items created successfully", {
+        orderId: order.id,
+        itemCount: orderItems.length,
+        requestId
+      });
     }
 
-    // Update product stock quantities
-    for (const item of cartItems) {
-      // Get current stock
-      const { data: product } = await supabase
-        .from("products")
-        .select("stock_quantity")
-        .eq("id", item.product_id)
-        .single();
+    // Step 4: Update product stock quantities (optimized with Promise.all)
+    log("Updating product stock", {
+      productCount: cartItems.length,
+      requestId
+    });
 
-      if (product) {
-        const newStock = product.stock_quantity - item.quantity;
-        const { error: stockError } = await supabase
-          .from("products")
-          .update({ stock_quantity: newStock })
-          .eq("id", item.product_id);
+    const stockUpdatePromises = cartItems.map(async (item) => {
+      try {
+        // Use atomic update to prevent race conditions
+        const { error: stockError } = await supabase.rpc(
+          'decrement_product_stock',
+          {
+            product_id_param: item.product_id,
+            quantity_param: item.quantity
+          }
+        );
 
         if (stockError) {
-          console.error("Error updating stock:", stockError);
-        }
-      }
-    }
+          // If RPC doesn't exist, fall back to manual update
+          const { data: product } = await supabase
+            .from("products")
+            .select("stock_quantity")
+            .eq("id", item.product_id)
+            .single();
 
-    // Clear user's cart
+          if (product) {
+            const newStock = Math.max(0, product.stock_quantity - item.quantity);
+            const { error: updateError } = await supabase
+              .from("products")
+              .update({ stock_quantity: newStock })
+              .eq("id", item.product_id);
+
+            if (updateError) {
+              logError("Error updating stock (fallback)", {
+                productId: item.product_id,
+                error: updateError,
+                requestId
+              });
+            } else {
+              log("Stock updated (fallback)", {
+                productId: item.product_id,
+                oldStock: product.stock_quantity,
+                newStock,
+                requestId
+              });
+            }
+          }
+        } else {
+          log("Stock decremented (RPC)", {
+            productId: item.product_id,
+            quantity: item.quantity,
+            requestId
+          });
+        }
+      } catch (err: any) {
+        logError("Stock update failed", {
+          productId: item.product_id,
+          error: err.message,
+          requestId
+        });
+        // Continue with other updates
+      }
+    });
+
+    // Wait for all stock updates to complete
+    await Promise.all(stockUpdatePromises);
+    log("All stock updates completed", { requestId });
+
+    // Step 5: Clear user's cart
+    log("Clearing user cart", { userId, requestId });
     const { error: clearCartError } = await supabase
       .from("cart_items")
       .delete()
       .eq("user_id", userId);
 
     if (clearCartError) {
-      console.error("Error clearing cart:", clearCartError);
+      logError("Error clearing cart", {
+        error: clearCartError,
+        userId,
+        requestId
+      });
+      // Don't throw - order is created, this is cleanup
+    } else {
+      log("Cart cleared successfully", { userId, requestId });
     }
 
-    console.log(
-      `Order ${order.id} created successfully for PaymentIntent ${paymentIntent.id}`
-    );
+    log("Order processing completed successfully", {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      paymentIntentId: paymentIntent.id,
+      requestId
+    });
 
-    // Send order confirmation email
-    try {
-      const orderItemsHtml = cartItems
-        .map(
-          (item: any) => `
+    // Step 6: Send order confirmation email (non-blocking)
+    sendOrderConfirmationEmail(order, cartItems, metadata, shippingAddress, requestId)
+      .catch((emailError) => {
+        logError("Error sending order confirmation email", {
+          error: emailError,
+          orderId: order.id,
+          requestId
+        });
+        // Don't fail the webhook if email fails
+      });
+
+  } catch (error: any) {
+    logError("Critical error in handlePaymentIntentSucceeded", {
+      error: error.message,
+      stack: error.stack,
+      paymentIntentId: paymentIntent.id,
+      requestId
+    });
+    throw error;
+  }
+}
+
+async function sendOrderConfirmationEmail(
+  order: any,
+  cartItems: any[],
+  metadata: any,
+  shippingAddress: any,
+  requestId: string
+) {
+  try {
+    log("Sending order confirmation email", {
+      orderId: order.id,
+      email: metadata.customer_email,
+      requestId
+    });
+
+    const orderItemsHtml = cartItems
+      .map(
+        (item: any) => `
         <tr>
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
             <strong>${item.products?.name || "Unknown Product"}</strong><br/>
@@ -213,10 +485,10 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
           </td>
         </tr>
       `
-        )
-        .join("");
+      )
+      .join("");
 
-      const emailHtml = `
+    const emailHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -334,50 +606,74 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
   </div>
 </body>
 </html>
-      `;
+    `;
 
-      await sendEmail({
-        to: metadata.customer_email,
-        subject: `Order Confirmation - ${order.order_number}`,
-        html: emailHtml,
-      });
+    await sendEmail({
+      to: metadata.customer_email,
+      subject: `Order Confirmation - ${order.order_number}`,
+      html: emailHtml,
+    });
 
-      console.log(`Order confirmation email sent to ${metadata.customer_email}`);
-    } catch (emailError) {
-      console.error("Error sending order confirmation email:", emailError);
-      // Don't fail the webhook if email fails - order is still created
-    }
-  } catch (error) {
-    console.error("Error in handlePaymentIntentSucceeded:", error);
+    log("Order confirmation email sent successfully", {
+      orderId: order.id,
+      email: metadata.customer_email,
+      requestId
+    });
+  } catch (emailError: any) {
+    logError("Failed to send order confirmation email", {
+      error: emailError.message,
+      orderId: order.id,
+      requestId
+    });
+    throw emailError;
   }
 }
 
-async function handlePaymentFailed(paymentIntent: any) {
-  console.log(`Payment failed for PaymentIntent ${paymentIntent.id}`);
+async function handlePaymentFailed(paymentIntent: any, requestId: string) {
+  log("=== Payment Failed Handler Started ===", {
+    paymentIntentId: paymentIntent.id,
+    requestId
+  });
 
-  // If an order was already created, mark it as failed
   const supabase = createSupabaseServiceRole();
 
   if (!supabase) {
-    console.error("Service role client not available");
+    logError("Service role client not available", { requestId });
     return;
   }
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select("id")
-    .eq("payment_intent_id", paymentIntent.id)
-    .single();
-
-  if (order) {
-    await supabase
+  try {
+    const { data: order } = await supabase
       .from("orders")
-      .update({
-        payment_status: "failed",
-        order_status: "cancelled",
-      })
-      .eq("id", order.id);
+      .select("id")
+      .eq("payment_intent_id", paymentIntent.id)
+      .single();
 
-    console.log(`Order ${order.id} marked as failed`);
+    if (order) {
+      await supabase
+        .from("orders")
+        .update({
+          payment_status: "failed",
+          order_status: "cancelled",
+        })
+        .eq("id", order.id);
+
+      log("Order marked as failed", {
+        orderId: order.id,
+        paymentIntentId: paymentIntent.id,
+        requestId
+      });
+    } else {
+      log("No order found for failed payment", {
+        paymentIntentId: paymentIntent.id,
+        requestId
+      });
+    }
+  } catch (error: any) {
+    logError("Error in handlePaymentFailed", {
+      error: error.message,
+      paymentIntentId: paymentIntent.id,
+      requestId
+    });
   }
 }
